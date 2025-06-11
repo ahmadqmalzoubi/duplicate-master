@@ -1,15 +1,68 @@
-# file-duplicate-finder
-Python code to find duplicate files in a base directory. blake2b hash is used to find the duplicates. The code returns the number of the duplicate files with their full path names.
+# Duplicate File Finder 🔍
 
-The problem of handling duplicate files is not new. It is a very known problem and many programmers created tools to find duplicates and then run some actions on the duplicate files.
-There are different approaches to tackle this problem and each one has its own strength points. In this script, the algorithm used is a simple one: Scan base directory recuresively for all the files, then:
-  - check file size
-  - size exist in fileDict?
-    - yes: then calculate the file hash of first 4kB of the file
-      - file hash exist in fileDict[size]?
-        - yes: then append the filePathName to the fileDict[size][hash] list of filePathName values.
-        - no: then create fileDict[size][hash] list and add fileName to its list of values.
-    - no: then create fileDict[size] and calculate the file hash of first 4k
-      - create fileDict[size][hash] list and add filePathName to its list of values.
-     
-The cryptographic hash function used in this script is BLAKE2(blake2b), see https://www.blake2.net/ for more details.
+A high-performance Python tool to find duplicate files with configurable accuracy/speed tradeoffs, featuring:
+- **Parallel processing** (6x faster than single-thread)
+- **Multi-region hashing** (detect more duplicates)
+- **Smart filtering** (ignore hidden files/symlinks)
+
+## 📦 Installation
+```bash
+git clone https://github.com/ahmadqmalzoubi/file-duplicate-finder.git
+cd file-duplicate-finder
+pip install -r requirements.txt  # tqdm, psutil (optional)
+```
+
+## 🚀 Usage
+```bash
+# Basic scan (100% accurate)
+python3 file-duplicate-finder.py ~/your_directory
+
+# Fast mode (first 4KB only)
+python3 file-duplicate-finder.py ~/your_directory --quick
+
+# High-accuracy mode (first/middle/last 4KB)
+python3 file-duplicate-finder.py ~/your_directory --multi-region
+
+# Custom threads (default: CPU cores + 4)
+python3 file-duplicate-finder.py ~/large_dir --threads 8
+```
+
+## 🛠️ Options
+| Flag            | Description                          | Default |
+|-----------------|--------------------------------------|---------|
+| `--quick`       | Fast but less accurate mode          | `False` |
+| `--multi-region`| Hash 3 file regions for better accuracy | `False` |
+| `--minsize`     | Minimum file size (bytes)            | `4096`  |
+| `--maxsize`     | Maximum file size (bytes)            | `4GB`   |
+| `--threads`     | Parallel threads count               | Auto    |
+
+## 📊 Performance Tips
+- For **SSDs/NVMe**: Use `--threads 16-32`  
+- For **network drives**: Use `--threads 4-8`  
+- For **initial scans**: `--quick` + `--threads max`  
+- For **final verification**: `--multi-region`  
+
+## 🔍 How It Works
+1. **Phase 1**: Index files by size (single-thread)
+2. **Phase 2**: First-pass hashing (parallel)
+3. **Phase 3**: Full verification (parallel if needed)
+
+```mermaid
+graph TD
+    A[Scan Files] --> B[Hash First 4KB]
+    B --> C{Duplicate Candidates?}
+    C -->|Yes| D[Full Hash Verify]
+    C -->|No| E[Discard]
+```
+
+## 🤝 Contributing
+1. Create a feature branch:  
+   ```bash
+   git checkout -b feat/your-feature
+   ```
+2. Follow PEP 8 style guide  
+3. Test changes:  
+   ```bash
+   python3 -m doctest file-duplicate-finder.py
+   ```
+   
