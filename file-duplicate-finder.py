@@ -7,17 +7,15 @@ import argparse
 
 def get_files_recursively(baseDir):
     for dentry in os.scandir(baseDir):
-        if dentry.is_dir(follow_symlinks=False):
+        if dentry.name.startswith('.') or dentry.is_symlink():
+            continue
+        elif dentry.is_dir(follow_symlinks=False):
             yield from get_files_recursively(dentry.path)
         else:
-            if dentry.is_symlink():
-                continue
-            else:
-                yield dentry
+            yield dentry
 
 
-def blake2bsum_first4k(filename):
-    buffer_size = 4096
+def blake2bsum(filename, buffer_size=4096):
     sum = hashlib.blake2b()
     with open(filename, 'rb') as f:
         data = f.read(buffer_size)
@@ -25,19 +23,10 @@ def blake2bsum_first4k(filename):
     return sum.hexdigest()
 
 
-def blake2bsum_last4k(filename):
-    sum = hashlib.blake2b()
-    with open(filename, 'rb') as f:
-        f.seek(-4096, os.SEEK_END)
-        data = f.read()
-        sum.update(data)
-    return sum.hexdigest()
-
-
 def human_readable_size(num, suffix="B"):
     for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
         if abs(num) < 1024.0:
-            return f"{num:3.1f} {unit}{suffix}"
+            return f"{num:3.1f}{unit}{suffix}"
         num /= 1024.0
     return f"{num:.1f}Yi{suffix}"
 
@@ -57,49 +46,47 @@ base_dir = os.path.abspath(args.basedir)
 file_max_size = args.maxsize
 file_min_size = args.minsize
 
-files_dict = {}
+
+first4khash_files_dict = {}
 
 for file in get_files_recursively(base_dir):
     file_size = os.stat(file.path).st_size
     if file_size > 0 and file_min_size < file_size < file_max_size:
-        file_hash = blake2bsum_first4k(file.path)
-        if file_size in files_dict:
-            if file_hash in files_dict[file_size]:
-                files_dict[file_size][file_hash].append(file.path)
-            else:
-                files_dict[file_size][file_hash] = []
-                files_dict[file_size][file_hash].append(file.path)
-        else:
-            files_dict[file_size] = {}
-            files_dict[file_size][file_hash] = []
-            files_dict[file_size][file_hash].append(file.path)
-
-duplicate_files_dict = {}
-
-for size, hashes_dict in files_dict.items():
-    for hash in hashes_dict:
-        if len(files_dict[size][hash]) > 1:
-            if size in duplicate_files_dict:
-                duplicate_files_dict[size][hash] = files_dict[size][hash]
-            else:
-                duplicate_files_dict[size] = {}
-                duplicate_files_dict[size][hash] = files_dict[size][hash]
+        file_first4khash = blake2bsum(file.path)
+        first4khash_files_dict.setdefault(
+            f'{file_size}-{file_first4khash}', list()).append(file.path)
 
 
-number_of_groups = 0
-number_of_all_files = 0
+wholefilehash_files_dict = {}
+
+for sizehash, fileslist in first4khash_files_dict.items():
+    if len(fileslist) > 1:
+        file_size = int(sizehash.split('-')[0])
+        for file in fileslist:
+            whole_file_hash = blake2bsum(file, file_size)
+            wholefilehash_files_dict.setdefault(
+                f'{file_size}-{whole_file_hash}', list()).append(file)
+
+
+unsorted_duplicate_files_dict = {sizehash: fileslist for sizehash,
+                                 fileslist in wholefilehash_files_dict.items() if len(fileslist) > 1}
+
+duplicate_files_dict = dict(sorted(unsorted_duplicate_files_dict.items()))
+
 
 print("\n# Duplicates:\n")
 print("File Size\tFiles Hash with the list of duplicate files\n")
 
-for size, hashes_dict in duplicate_files_dict.items():
-    print(human_readable_size(size))
-    for hash in hashes_dict:
-        number_of_groups += 1
-        number_of_all_files += len(hashes_dict[hash])
-        print("\t", hash)
-        print("\t", hashes_dict[hash])
-        print("")
+number_of_groups = len(duplicate_files_dict.keys())
+number_of_all_files = 0
+
+for sizehash, fileslist in duplicate_files_dict.items():
+    file_size = int(sizehash.split('-')[0])
+    file_hash = sizehash.split('-')[1]
+    print(human_readable_size(file_size))
+    number_of_all_files += len(fileslist)
+    print("\t", file_hash)
+    print("\t", fileslist)
     print("")
 
 number_of_duplicate_files = number_of_all_files - number_of_groups
