@@ -9,7 +9,7 @@ A high-performance Python tool to find duplicate files with configurable accurac
 ```bash
 git clone https://github.com/ahmadqmalzoubi/file-duplicate-finder.git
 cd file-duplicate-finder
-pip install -r requirements.txt  # tqdm, psutil (optional)
+pip install -r requirements.txt
 ```
 
 ## 🚀 Usage
