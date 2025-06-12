@@ -6,9 +6,24 @@ import argparse
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
+import logging
+import json
+import csv
+
+
+# Set up a logger
+logger = logging.getLogger("duplicate_finder")
+logger.setLevel(logging.INFO)  # Default level; will be overridden by CLI
+
+# StreamHandler for console output
+console_handler = logging.StreamHandler()
+formatter = logging.Formatter("[%(levelname)s] %(message)s")
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 # Constants
 DEFAULT_THREADS = min(32, (os.cpu_count() or 1) + 4)  # Optimal thread count
+
 
 def get_files_recursively(baseDir):
     """Thread-safe file scanner with hidden/symlink filtering"""
@@ -19,6 +34,7 @@ def get_files_recursively(baseDir):
             yield from get_files_recursively(dentry.path)
         else:
             yield dentry.path  # Return paths instead of DirEntry for thread safety
+
 
 def blake2bsum(filename, buffer_size="auto", multi_region=False):
     """Thread-safe hashing with three modes"""
@@ -43,20 +59,21 @@ def blake2bsum(filename, buffer_size="auto", multi_region=False):
                 h.update(f.read(buffer_size))
     return h.hexdigest()
 
+
 def batch_hash_files(file_paths, buffer_size, multi_region):
     """Process a batch of files in parallel"""
     with ThreadPoolExecutor(max_workers=DEFAULT_THREADS) as executor:
         futures = {
             executor.submit(
-                blake2bsum, 
-                path, 
+                blake2bsum,
+                path,
                 buffer_size,
                 multi_region
             ): path for path in file_paths
         }
         results = {}
         for future in tqdm(
-            as_completed(futures), 
+            as_completed(futures),
             total=len(futures),
             desc="Hashing files",
             unit="file"
@@ -68,12 +85,13 @@ def batch_hash_files(file_paths, buffer_size, multi_region):
                 continue
         return results
 
+
 def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
     """Parallelized duplicate detection"""
     size_groups = defaultdict(list)
-    
+
     # Phase 1: Scan and group by size (single-threaded)
-    print("🔍 Scanning directory structure...")
+    logger.info("🔍 Scanning directory structure...")
     files = []
     for path in tqdm(get_files_recursively(base_dir), desc="Indexing files"):
         try:
@@ -84,14 +102,14 @@ def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
             continue
 
     # Phase 2: First-pass hashing (parallel)
-    print("🔢 First-pass hashing...")
+    logger.info("🔢 First-pass hashing...")
     size_hash_groups = defaultdict(list)
     hash_results = batch_hash_files(
         [p for (s, p) in files],
         buffer_size=4096 if quick_mode else "auto",
         multi_region=(multi_region and not quick_mode)
     )
-    
+
     for file_size, path in files:
         if path in hash_results:
             size_hash_groups[(file_size, hash_results[path])].append(path)
@@ -99,10 +117,10 @@ def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
     # Phase 3: Verification (parallel if needed)
     duplicates = defaultdict(list)
     if not quick_mode:
-        print("✅ Verifying potential duplicates...")
+        logger.info("✅ Verifying potential duplicates...")
         verify_files = []
         verify_map = {}  # {hash: original_paths}
-        
+
         for (size, hash), paths in size_hash_groups.items():
             if len(paths) > 1:
                 for path in paths:
@@ -110,34 +128,56 @@ def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
                     verify_map[path] = (size, paths)
 
         verify_results = batch_hash_files(verify_files, -1, False)
-        
+
         for path, hash in verify_results.items():
             size, original_paths = verify_map[path]
             duplicates[(size, hash)].append(path)
-            
+
         # Filter single-file groups
         duplicates = {k: v for k, v in duplicates.items() if len(v) > 1}
     else:
         duplicates = {k: v for k, v in size_hash_groups.items() if len(v) > 1}
-    
+
     return duplicates
+
 
 def main():
     parser = argparse.ArgumentParser(
         description='Parallel duplicate file finder with configurable accuracy')
     parser.add_argument('basedir', nargs='?', default=".",
-                       help='directory to search')
+                        help='directory to search')
     parser.add_argument('--minsize', type=int, default=4096,
-                       help='minimum file size in bytes')
+                        help='minimum file size in bytes')
     parser.add_argument('--maxsize', type=int, default=4294967296,
-                       help='maximum file size in bytes')
+                        help='maximum file size in bytes')
     parser.add_argument('--quick', action='store_true',
-                       help='fast mode (first 4KB only)')
+                        help='fast mode (first 4KB only)')
     parser.add_argument('--multi-region', action='store_true',
-                       help='hash first/middle/last 4KB')
+                        help='hash first/middle/last 4KB')
     parser.add_argument('--threads', type=int, default=DEFAULT_THREADS,
-                       help=f'thread count (default: {DEFAULT_THREADS})')
+                        help=f'thread count (default: {DEFAULT_THREADS})')
+    parser.add_argument('--loglevel', default="info", choices=["debug", "info", "warning", "error"],
+                        help='Set logging verbosity (default: info)')
+    parser.add_argument('--logfile', type=str,
+                        help='Optional log file path to save output (in addition to console)')
+    parser.add_argument('--json-out', type=str,
+                        help='Optional path to save duplicate results as JSON')
+    parser.add_argument('--csv-out', type=str,
+                        help='Optional path to save duplicate results as CSV')
+
     args = parser.parse_args()
+
+    # Set log level from CLI
+    logger.setLevel(getattr(logging, args.loglevel.upper()))
+
+    # Optional file handler
+    if args.logfile:
+        file_handler = logging.FileHandler(args.logfile)
+        file_formatter = logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(message)s")
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
+        logger.debug(f"Logging to file: {args.logfile}")
 
     duplicates = find_duplicates(
         os.path.abspath(args.basedir),
@@ -148,14 +188,47 @@ def main():
     )
 
     # Print results
-    print(f"\n📝 Duplicate Report ({'Quick' if args.quick else 'Multi-Region' if args.multi_region else 'Full'})")
+    logger.info(
+        f"\n📝 Duplicate Report ({'Quick' if args.quick else 'Multi-Region' if args.multi_region else 'Full'})")
+
     total_files = sum(len(g) for g in duplicates.values())
-    print(f"Found {len(duplicates)} groups ({total_files} files total)")
-    
+    logger.info(f"Found {len(duplicates)} groups ({total_files} files total)")
+
     for (size, hash), paths in sorted(duplicates.items()):
-        print(f"\n■ Size: {size:,} bytes  Hash: {hash[:8]}...")
+        logger.info(f"\n■ Size: {size:,} bytes  Hash: {hash[:8]}...")
         for path in paths:
-            print(f"  → {path}")
+            logger.info(f"  → {path}")
+
+    # Group duplicate entries by size and hash
+    grouped_export_data = []
+    for (size, hash), paths in sorted(duplicates.items()):
+        grouped_export_data.append({
+            "size_bytes": size,
+            "hash": hash,
+            "paths": paths
+        })
+
+    # Export to JSON
+    if args.json_out:
+        try:
+            with open(args.json_out, 'w', encoding='utf-8') as json_file:
+                json.dump(grouped_export_data, json_file, indent=2)
+            logger.info(f"📝 Duplicate data written to JSON: {args.json_out}")
+        except Exception as e:
+            logger.error(f"Failed to write JSON output: {e}")
+
+    # Export to CSV
+    if args.csv_out:
+        try:
+            with open(args.csv_out, 'w', newline='', encoding='utf-8') as csv_file:
+                writer = csv.DictWriter(csv_file, fieldnames=[
+                                        "size_bytes", "hash", "path"])
+                writer.writeheader()
+                writer.writerows(export_data)
+            logger.info(f"📝 Duplicate data written to CSV: {args.csv_out}")
+        except Exception as e:
+            logger.error(f"Failed to write CSV output: {e}")
+
 
 if __name__ == "__main__":
     main()
