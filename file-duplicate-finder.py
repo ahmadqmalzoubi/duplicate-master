@@ -89,7 +89,7 @@ def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
     size_groups = defaultdict(list)
 
     # Phase 1: Scan and group by size (single-threaded)
-    print("🔍 Scanning directory structure...")
+    logger.info("🔍 Scanning directory structure...")
     files = []
     for path in tqdm(get_files_recursively(base_dir), desc="Indexing files"):
         try:
@@ -100,7 +100,7 @@ def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
             continue
 
     # Phase 2: First-pass hashing (parallel)
-    print("🔢 First-pass hashing...")
+    logger.info("🔢 First-pass hashing...")
     size_hash_groups = defaultdict(list)
     hash_results = batch_hash_files(
         [p for (s, p) in files],
@@ -115,7 +115,7 @@ def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
     # Phase 3: Verification (parallel if needed)
     duplicates = defaultdict(list)
     if not quick_mode:
-        print("✅ Verifying potential duplicates...")
+        logger.info("✅ Verifying potential duplicates...")
         verify_files = []
         verify_map = {}  # {hash: original_paths}
 
@@ -170,17 +170,17 @@ def main():
         args.multi_region
     )
 
+    # Print results
+    logger.info(
+        f"\n📝 Duplicate Report ({'Quick' if args.quick else 'Multi-Region' if args.multi_region else 'Full'})")
 
-# Print results
-print(
-    f"\n📝 Duplicate Report ({'Quick' if args.quick else 'Multi-Region' if args.multi_region else 'Full'})")
-total_files = sum(len(g) for g in duplicates.values())
-print(f"Found {len(duplicates)} groups ({total_files} files total)")
+    total_files = sum(len(g) for g in duplicates.values())
+    logger.info(f"Found {len(duplicates)} groups ({total_files} files total)")
 
-for (size, hash), paths in sorted(duplicates.items()):
-    print(f"\n■ Size: {size:,} bytes  Hash: {hash[:8]}...")
-    for path in paths:
-        print(f"  → {path}")
+    for (size, hash), paths in sorted(duplicates.items()):
+        logger.info(f"\n■ Size: {size:,} bytes  Hash: {hash[:8]}...")
+        for path in paths:
+            logger.info(f"  → {path}")
 
 
 if __name__ == "__main__":
