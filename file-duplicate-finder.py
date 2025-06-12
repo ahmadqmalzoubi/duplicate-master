@@ -154,7 +154,13 @@ def main():
                         help='hash first/middle/last 4KB')
     parser.add_argument('--threads', type=int, default=DEFAULT_THREADS,
                         help=f'thread count (default: {DEFAULT_THREADS})')
+    parser.add_argument('--loglevel', default="info", choices=["debug", "info", "warning", "error"],
+                        help='Set logging verbosity (default: info)')
+
     args = parser.parse_args()
+
+    # Set log level from CLI
+    logger.setLevel(getattr(logging, args.loglevel.upper()))
 
     duplicates = find_duplicates(
         os.path.abspath(args.basedir),
@@ -164,16 +170,17 @@ def main():
         args.multi_region
     )
 
-    # Print results
-    print(
-        f"\n📝 Duplicate Report ({'Quick' if args.quick else 'Multi-Region' if args.multi_region else 'Full'})")
-    total_files = sum(len(g) for g in duplicates.values())
-    print(f"Found {len(duplicates)} groups ({total_files} files total)")
 
-    for (size, hash), paths in sorted(duplicates.items()):
-        print(f"\n■ Size: {size:,} bytes  Hash: {hash[:8]}...")
-        for path in paths:
-            print(f"  → {path}")
+# Print results
+print(
+    f"\n📝 Duplicate Report ({'Quick' if args.quick else 'Multi-Region' if args.multi_region else 'Full'})")
+total_files = sum(len(g) for g in duplicates.values())
+print(f"Found {len(duplicates)} groups ({total_files} files total)")
+
+for (size, hash), paths in sorted(duplicates.items()):
+    print(f"\n■ Size: {size:,} bytes  Hash: {hash[:8]}...")
+    for path in paths:
+        print(f"  → {path}")
 
 
 if __name__ == "__main__":
