@@ -6,9 +6,22 @@ import argparse
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
+import logging
+
+
+# Set up a logger
+logger = logging.getLogger("duplicate_finder")
+logger.setLevel(logging.INFO)  # Default level; will be overridden by CLI
+
+# StreamHandler for console output
+console_handler = logging.StreamHandler()
+formatter = logging.Formatter("[%(levelname)s] %(message)s")
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 # Constants
 DEFAULT_THREADS = min(32, (os.cpu_count() or 1) + 4)  # Optimal thread count
+
 
 def get_files_recursively(baseDir):
     """Thread-safe file scanner with hidden/symlink filtering"""
@@ -19,6 +32,7 @@ def get_files_recursively(baseDir):
             yield from get_files_recursively(dentry.path)
         else:
             yield dentry.path  # Return paths instead of DirEntry for thread safety
+
 
 def blake2bsum(filename, buffer_size="auto", multi_region=False):
     """Thread-safe hashing with three modes"""
@@ -43,20 +57,21 @@ def blake2bsum(filename, buffer_size="auto", multi_region=False):
                 h.update(f.read(buffer_size))
     return h.hexdigest()
 
+
 def batch_hash_files(file_paths, buffer_size, multi_region):
     """Process a batch of files in parallel"""
     with ThreadPoolExecutor(max_workers=DEFAULT_THREADS) as executor:
         futures = {
             executor.submit(
-                blake2bsum, 
-                path, 
+                blake2bsum,
+                path,
                 buffer_size,
                 multi_region
             ): path for path in file_paths
         }
         results = {}
         for future in tqdm(
-            as_completed(futures), 
+            as_completed(futures),
             total=len(futures),
             desc="Hashing files",
             unit="file"
@@ -68,10 +83,11 @@ def batch_hash_files(file_paths, buffer_size, multi_region):
                 continue
         return results
 
+
 def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
     """Parallelized duplicate detection"""
     size_groups = defaultdict(list)
-    
+
     # Phase 1: Scan and group by size (single-threaded)
     print("🔍 Scanning directory structure...")
     files = []
@@ -91,7 +107,7 @@ def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
         buffer_size=4096 if quick_mode else "auto",
         multi_region=(multi_region and not quick_mode)
     )
-    
+
     for file_size, path in files:
         if path in hash_results:
             size_hash_groups[(file_size, hash_results[path])].append(path)
@@ -102,7 +118,7 @@ def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
         print("✅ Verifying potential duplicates...")
         verify_files = []
         verify_map = {}  # {hash: original_paths}
-        
+
         for (size, hash), paths in size_hash_groups.items():
             if len(paths) > 1:
                 for path in paths:
@@ -110,33 +126,34 @@ def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
                     verify_map[path] = (size, paths)
 
         verify_results = batch_hash_files(verify_files, -1, False)
-        
+
         for path, hash in verify_results.items():
             size, original_paths = verify_map[path]
             duplicates[(size, hash)].append(path)
-            
+
         # Filter single-file groups
         duplicates = {k: v for k, v in duplicates.items() if len(v) > 1}
     else:
         duplicates = {k: v for k, v in size_hash_groups.items() if len(v) > 1}
-    
+
     return duplicates
+
 
 def main():
     parser = argparse.ArgumentParser(
         description='Parallel duplicate file finder with configurable accuracy')
     parser.add_argument('basedir', nargs='?', default=".",
-                       help='directory to search')
+                        help='directory to search')
     parser.add_argument('--minsize', type=int, default=4096,
-                       help='minimum file size in bytes')
+                        help='minimum file size in bytes')
     parser.add_argument('--maxsize', type=int, default=4294967296,
-                       help='maximum file size in bytes')
+                        help='maximum file size in bytes')
     parser.add_argument('--quick', action='store_true',
-                       help='fast mode (first 4KB only)')
+                        help='fast mode (first 4KB only)')
     parser.add_argument('--multi-region', action='store_true',
-                       help='hash first/middle/last 4KB')
+                        help='hash first/middle/last 4KB')
     parser.add_argument('--threads', type=int, default=DEFAULT_THREADS,
-                       help=f'thread count (default: {DEFAULT_THREADS})')
+                        help=f'thread count (default: {DEFAULT_THREADS})')
     args = parser.parse_args()
 
     duplicates = find_duplicates(
@@ -148,14 +165,16 @@ def main():
     )
 
     # Print results
-    print(f"\n📝 Duplicate Report ({'Quick' if args.quick else 'Multi-Region' if args.multi_region else 'Full'})")
+    print(
+        f"\n📝 Duplicate Report ({'Quick' if args.quick else 'Multi-Region' if args.multi_region else 'Full'})")
     total_files = sum(len(g) for g in duplicates.values())
     print(f"Found {len(duplicates)} groups ({total_files} files total)")
-    
+
     for (size, hash), paths in sorted(duplicates.items()):
         print(f"\n■ Size: {size:,} bytes  Hash: {hash[:8]}...")
         for path in paths:
             print(f"  → {path}")
+
 
 if __name__ == "__main__":
     main()
