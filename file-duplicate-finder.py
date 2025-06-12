@@ -141,6 +141,23 @@ def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
     return duplicates
 
 
+def analyze_space_savings(duplicates):
+    total_space = 0
+    savings = 0
+    for (size, _), paths in duplicates.items():
+        total_space += size * len(paths)
+        savings += size * (len(paths) - 1)
+    return total_space, savings
+
+
+def format_bytes(size):
+    for unit in ['bytes', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024:
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} PB"
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Parallel duplicate file finder with configurable accuracy')
@@ -187,6 +204,9 @@ def main():
         args.multi_region
     )
 
+    # Compute total duplicate size and potential savings
+    total_space, potential_savings = analyze_space_savings(duplicates)
+
     # Print results
     logger.info(
         f"\n📝 Duplicate Report ({'Quick' if args.quick else 'Multi-Region' if args.multi_region else 'Full'})")
@@ -198,6 +218,11 @@ def main():
         logger.info(f"\n■ Size: {size:,} bytes  Hash: {hash[:8]}...")
         for path in paths:
             logger.info(f"  → {path}")
+
+    logger.info(
+        f"📦 Total disk space used by duplicates: {format_bytes(total_space)}")
+    logger.info(
+        f"💸 Potential savings if removed:        {format_bytes(potential_savings)}")
 
     # Group duplicate entries by size and hash
     grouped_export_data = []
@@ -224,7 +249,14 @@ def main():
                 writer = csv.DictWriter(csv_file, fieldnames=[
                                         "size_bytes", "hash", "path"])
                 writer.writeheader()
-                writer.writerows(export_data)
+                for row in grouped_export_data:
+                    for path in row["paths"]:
+                        writer.writerow({
+                            "size_bytes": row["size_bytes"],
+                            "hash": row["hash"],
+                            "path": path
+                        })
+
             logger.info(f"📝 Duplicate data written to CSV: {args.csv_out}")
         except Exception as e:
             logger.error(f"Failed to write CSV output: {e}")
