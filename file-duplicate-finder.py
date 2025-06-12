@@ -7,6 +7,8 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 import logging
+import json
+import csv
 
 
 # Set up a logger
@@ -158,6 +160,10 @@ def main():
                         help='Set logging verbosity (default: info)')
     parser.add_argument('--logfile', type=str,
                         help='Optional log file path to save output (in addition to console)')
+    parser.add_argument('--json-out', type=str,
+                        help='Optional path to save duplicate results as JSON')
+    parser.add_argument('--csv-out', type=str,
+                        help='Optional path to save duplicate results as CSV')
 
     args = parser.parse_args()
 
@@ -192,6 +198,36 @@ def main():
         logger.info(f"\n■ Size: {size:,} bytes  Hash: {hash[:8]}...")
         for path in paths:
             logger.info(f"  → {path}")
+
+    # Group duplicate entries by size and hash
+    grouped_export_data = []
+    for (size, hash), paths in sorted(duplicates.items()):
+        grouped_export_data.append({
+            "size_bytes": size,
+            "hash": hash,
+            "paths": paths
+        })
+
+    # Export to JSON
+    if args.json_out:
+        try:
+            with open(args.json_out, 'w', encoding='utf-8') as json_file:
+                json.dump(grouped_export_data, json_file, indent=2)
+            logger.info(f"📝 Duplicate data written to JSON: {args.json_out}")
+        except Exception as e:
+            logger.error(f"Failed to write JSON output: {e}")
+
+    # Export to CSV
+    if args.csv_out:
+        try:
+            with open(args.csv_out, 'w', newline='', encoding='utf-8') as csv_file:
+                writer = csv.DictWriter(csv_file, fieldnames=[
+                                        "size_bytes", "hash", "path"])
+                writer.writeheader()
+                writer.writerows(export_data)
+            logger.info(f"📝 Duplicate data written to CSV: {args.csv_out}")
+        except Exception as e:
+            logger.error(f"Failed to write CSV output: {e}")
 
 
 if __name__ == "__main__":
