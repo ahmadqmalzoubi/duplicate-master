@@ -156,11 +156,22 @@ def main():
                         help=f'thread count (default: {DEFAULT_THREADS})')
     parser.add_argument('--loglevel', default="info", choices=["debug", "info", "warning", "error"],
                         help='Set logging verbosity (default: info)')
+    parser.add_argument('--logfile', type=str,
+                        help='Optional log file path to save output (in addition to console)')
 
     args = parser.parse_args()
 
     # Set log level from CLI
     logger.setLevel(getattr(logging, args.loglevel.upper()))
+
+    # Optional file handler
+    if args.logfile:
+        file_handler = logging.FileHandler(args.logfile)
+        file_formatter = logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(message)s")
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
+        logger.debug(f"Logging to file: {args.logfile}")
 
     duplicates = find_duplicates(
         os.path.abspath(args.basedir),
