@@ -9,6 +9,7 @@ from tqdm import tqdm
 import logging
 import json
 import csv
+import fnmatch
 
 
 # Set up a logger
@@ -25,15 +26,29 @@ logger.addHandler(console_handler)
 DEFAULT_THREADS = min(32, (os.cpu_count() or 1) + 4)  # Optimal thread count
 
 
-def get_files_recursively(baseDir):
-    """Thread-safe file scanner with hidden/symlink filtering"""
+def get_files_recursively(baseDir, exclude=None, exclude_dir=None, exclude_hidden=False):
+    exclude = exclude or []
+    exclude_dir = exclude_dir or []
+    """Thread-safe file scanner with optional hidden/symlink filtering"""
     for dentry in os.scandir(baseDir):
-        if dentry.name.startswith('.') or dentry.is_symlink():
+        if dentry.is_symlink():
+            logger.debug(f"Skipping symlink: {dentry.path}")
             continue
-        elif dentry.is_dir(follow_symlinks=False):
-            yield from get_files_recursively(dentry.path)
+
+        if exclude_hidden and dentry.name.startswith('.'):
+            logger.debug(f"Skipping hidden: {dentry.path}")
+            continue
+
+        if dentry.is_dir(follow_symlinks=False):
+            if dentry.name in exclude_dir:
+                logger.debug(f"Skipping excluded directory: {dentry.path}")
+                continue
+            yield from get_files_recursively(dentry.path, exclude, exclude_dir, exclude_hidden)
         else:
-            yield dentry.path  # Return paths instead of DirEntry for thread safety
+            if any(fnmatch.fnmatch(dentry.name, pattern) for pattern in exclude):
+                logger.debug(f"Skipping excluded file: {dentry.path}")
+                continue
+            yield dentry.path
 
 
 def blake2bsum(filename, buffer_size="auto", multi_region=False):
@@ -86,14 +101,13 @@ def batch_hash_files(file_paths, buffer_size, multi_region):
         return results
 
 
-def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region):
+def find_duplicates(base_dir, min_size, max_size, quick_mode, multi_region, exclude, exclude_dir, exclude_hidden):
     """Parallelized duplicate detection"""
-    size_groups = defaultdict(list)
 
     # Phase 1: Scan and group by size (single-threaded)
     logger.info("🔍 Scanning directory structure...")
     files = []
-    for path in tqdm(get_files_recursively(base_dir), desc="Indexing files"):
+    for path in tqdm(get_files_recursively(base_dir, exclude, exclude_dir, exclude_hidden), desc="Indexing files"):
         try:
             file_size = os.path.getsize(path)
             if min_size < file_size < max_size:
@@ -189,6 +203,12 @@ def main():
                         help='Skip confirmation before deletion')
     parser.add_argument('--interactive', action='store_true',
                         help='Prompt before deleting each group (used with --delete)')
+    parser.add_argument('--exclude', action='append', default=[],
+                        help='Glob pattern to exclude files (e.g. *.bak, Thumbs.db)')
+    parser.add_argument('--exclude-dir', action='append', default=[],
+                        help='Directory names to exclude (e.g. .git, node_modules)')
+    parser.add_argument('--exclude-hidden', action='store_true',
+                        help='Exclude hidden files and directories (those starting with a dot)')
 
     args = parser.parse_args()
 
@@ -217,7 +237,10 @@ def main():
         args.minsize,
         args.maxsize,
         args.quick,
-        args.multi_region
+        args.multi_region,
+        args.exclude,
+        args.exclude_dir,
+        args.exclude_hidden
     )
 
     # Compute total duplicate size and potential savings
