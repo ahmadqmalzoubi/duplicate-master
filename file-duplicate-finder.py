@@ -181,8 +181,22 @@ def main():
                         help='Optional path to save duplicate results as JSON')
     parser.add_argument('--csv-out', type=str,
                         help='Optional path to save duplicate results as CSV')
+    parser.add_argument('--delete', action='store_true',
+                        help='Delete duplicate files (default: false)')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Simulate deletion without removing any files (default: true)')
+    parser.add_argument('--force', action='store_true',
+                        help='Skip confirmation before deletion')
 
     args = parser.parse_args()
+
+    # Validate base directory
+    if not os.path.exists(args.basedir):
+        logger.error(f"❌ The directory '{args.basedir}' does not exist.")
+        return
+    if not os.path.isdir(args.basedir):
+        logger.error(f"❌ The path '{args.basedir}' is not a directory.")
+        return
 
     # Set log level from CLI
     logger.setLevel(getattr(logging, args.loglevel.upper()))
@@ -223,6 +237,40 @@ def main():
         f"📦 Total disk space used by duplicates: {format_bytes(total_space)}")
     logger.info(
         f"💸 Potential savings if removed:        {format_bytes(potential_savings)}")
+
+    # Perform deletion or dry-run
+    if args.delete:
+        if not args.force:
+            confirm = input(
+                "\n⚠️  Are you sure you want to delete duplicate files? (y/N): ").strip().lower()
+            if confirm != 'y':
+                logger.info("🛑 Deletion cancelled by user.")
+                return
+
+        logger.info(
+            f"\n🚮 Starting {'dry-run ' if args.dry_run else ''}deletion process...")
+
+        delete_count = 0
+        for (size, hash), paths in sorted(duplicates.items()):
+            keep = paths[0]
+            to_delete = paths[1:]
+
+            for path in to_delete:
+                if args.dry_run:
+                    logger.info(f"[DRY-RUN] Would delete: {path}")
+                else:
+                    try:
+                        os.remove(path)
+                        logger.info(f"Deleted: {path}")
+                        delete_count += 1
+                    except Exception as e:
+                        logger.error(f"Failed to delete {path}: {e}")
+
+        if args.dry_run:
+            logger.info("\n✅ Dry-run completed. No files were deleted.")
+        else:
+            logger.info(
+                f"\n✅ Deletion complete. {delete_count} files deleted.")
 
     # Group duplicate entries by size and hash
     grouped_export_data = []
