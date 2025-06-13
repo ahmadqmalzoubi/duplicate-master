@@ -187,6 +187,8 @@ def main():
                         help='Simulate deletion without removing any files (default: true)')
     parser.add_argument('--force', action='store_true',
                         help='Skip confirmation before deletion')
+    parser.add_argument('--interactive', action='store_true',
+                        help='Prompt before deleting each group (used with --delete)')
 
     args = parser.parse_args()
 
@@ -251,9 +253,30 @@ def main():
             f"\n🚮 Starting {'dry-run ' if args.dry_run else ''}deletion process...")
 
         delete_count = 0
+        skipped_groups = 0
+        aborted = False
+
         for (size, hash), paths in sorted(duplicates.items()):
             keep = paths[0]
             to_delete = paths[1:]
+
+            if args.interactive:
+                print(
+                    f"\n📂 Duplicate group (Size: {format_bytes(size)}, Hash: {hash[:8]}):")
+                print(f"  KEEP → {keep}")
+                for path in to_delete:
+                    print(f"  DEL  → {path}")
+                choice = input(
+                    "Delete these duplicates? [y/N/s] ").strip().lower()
+
+                if choice == 's':
+                    logger.info("🛑 Deletion session aborted by user.")
+                    aborted = True
+                    break
+                elif choice != 'y':
+                    logger.info("⏭️ Skipped deletion for this group.")
+                    skipped_groups += 1
+                    continue
 
             for path in to_delete:
                 if args.dry_run:
@@ -261,16 +284,21 @@ def main():
                 else:
                     try:
                         os.remove(path)
-                        logger.info(f"Deleted: {path}")
+                        logger.info(f"🗑️ Deleted: {path}")
                         delete_count += 1
                     except Exception as e:
-                        logger.error(f"Failed to delete {path}: {e}")
+                        logger.error(f"❌ Failed to delete {path}: {e}")
 
-        if args.dry_run:
+        if aborted:
+            logger.info("\n⚠️ Deletion process aborted by user.")
+        elif args.dry_run:
             logger.info("\n✅ Dry-run completed. No files were deleted.")
         else:
             logger.info(
                 f"\n✅ Deletion complete. {delete_count} files deleted.")
+
+        if skipped_groups > 0:
+            logger.info(f"ℹ️ Skipped groups: {skipped_groups}")
 
     # Group duplicate entries by size and hash
     grouped_export_data = []
