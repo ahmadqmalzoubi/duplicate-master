@@ -280,28 +280,35 @@ def main():
         aborted = False
 
         for (size, hash), paths in sorted(duplicates.items()):
-            keep = paths[0]
-            to_delete = paths[1:]
-
             if args.interactive:
                 print(
                     f"\n📂 Duplicate group (Size: {format_bytes(size)}, Hash: {hash[:8]}):")
-                print(f"  KEEP → {keep}")
-                for path in to_delete:
-                    print(f"  DEL  → {path}")
+                for idx, path in enumerate(paths):
+                    print(f"  [{idx}] {path}")
+
                 choice = input(
-                    "Delete these duplicates? [y/N/s] ").strip().lower()
+                    "Enter number(s) of files to delete (comma-separated), 'a' for all but first, or 's' to skip: ").strip().lower()
 
                 if choice == 's':
-                    logger.info("🛑 Deletion session aborted by user.")
-                    aborted = True
-                    break
-                elif choice != 'y':
                     logger.info("⏭️ Skipped deletion for this group.")
                     skipped_groups += 1
                     continue
+                elif choice == 'a':
+                    selected_to_delete = paths[1:]
+                else:
+                    try:
+                        indices = [int(x.strip()) for x in choice.split(',')]
+                        selected_to_delete = [paths[i]
+                                              for i in indices if 0 <= i < len(paths)]
+                    except Exception:
+                        logger.warning(
+                            "⚠️ Invalid input, skipping this group.")
+                        skipped_groups += 1
+                        continue
+            else:
+                selected_to_delete = paths[1:]
 
-            for path in to_delete:
+            for path in selected_to_delete:
                 if args.dry_run:
                     logger.info(f"[DRY-RUN] Would delete: {path}")
                 else:
