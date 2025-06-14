@@ -10,7 +10,7 @@ A high-performance, parallel Python tool to detect and manage duplicate files �
 - 🎯 **Accuracy modes**: Full, Quick (4KB), Multi-region
 - 📁 **Recursive scan** with symlink/hidden file filtering
 - 🧾 **Export results** to JSON/CSV
-- 🧼 **Safe deletion** with dry-run, force, and interactive modes
+- 🧼 **Safe deletion** with dry-run, force, and **interactive file-level selection**
 - 📦 **Saving space analysis** included in report
 - 📜 **Verbose logging** with optional file log
 
@@ -50,7 +50,7 @@ python3 file-duplicate-finder.py ~/data --delete
 # Force deletion without confirmation
 python3 file-duplicate-finder.py ~/data --delete --force
 
-# Interactive deletion per group
+# Interactive deletion per group with file selection
 python3 file-duplicate-finder.py ~/data --delete --interactive
 ```
 
@@ -58,21 +58,24 @@ python3 file-duplicate-finder.py ~/data --delete --interactive
 
 ## 🛠️ Command-Line Options
 
-| Flag              | Description                                     | Default     |
-|-------------------|-------------------------------------------------|-------------|
-| `--quick`         | Fast but less accurate (hash first 4KB)         | `False`     |
-| `--multi-region`  | Hash 3 parts (start/middle/end) for accuracy    | `False`     |
-| `--minsize`       | Minimum file size to consider (bytes)          | `4096`      |
-| `--maxsize`       | Maximum file size to consider (bytes)          | `4GB`       |
-| `--threads`       | Number of hashing threads                      | Auto        |
-| `--logfile`       | Path to save log output                         | None        |
-| `--loglevel`      | Set logging verbosity (debug/info/warning/...)  | `info`      |
-| `--json-out`      | Save results as JSON                            | None        |
-| `--csv-out`       | Save results as CSV                             | None        |
-| `--delete`        | Enable duplicate deletion                       | `False`     |
-| `--dry-run`       | Simulate deletion without removing files        | `True`      |
-| `--force`         | Skip deletion confirmation                      | `False`     |
-| `--interactive`   | Confirm deletion of each group manually         | `False`     |
+| Flag              | Description                                                       | Default |
+|-------------------|-------------------------------------------------------------------|---------|
+| `--quick`         | Fast but less accurate (hash first 4KB)                           | `False` |
+| `--multi-region`  | Hash 3 parts (start/middle/end) for accuracy                      | `False` |
+| `--minsize`       | Minimum file size to consider (bytes)                             | `4096`  |
+| `--maxsize`       | Maximum file size to consider (bytes)                             | `4GB`   |
+| `--threads`       | Number of hashing threads                                          | Auto    |
+| `--logfile`       | Path to save log output                                            | None    |
+| `--loglevel`      | Set logging verbosity (debug/info/warning/...)                    | `info`  |
+| `--json-out`      | Save results as JSON                                               | None    |
+| `--csv-out`       | Save results as CSV                                                | None    |
+| `--delete`        | Enable duplicate deletion                                          | `False` |
+| `--dry-run`       | Simulate deletion without removing files                           | `True`  |
+| `--force`         | Skip deletion confirmation                                         | `False` |
+| `--interactive`   | Prompt before deleting each group; choose files by number          | `False` |
+| `--exclude`       | Glob pattern to exclude files (e.g. `*.bak`, `Thumbs.db`)          | None    |
+| `--exclude-dir`   | Directory names to exclude (e.g. `.git`, `node_modules`)           | None    |
+| `--exclude-hidden`| Exclude hidden files and directories (starting with dot)           | `False` |
 
 ---
 
@@ -99,6 +102,27 @@ graph TD
     C -->|Yes| D[Full Hash Verify]
     C -->|No| E[Skip]
     D --> F[Report/Export/Delete]
+```
+
+---
+
+## ✋ Interactive Deletion Mode
+
+When using `--delete --interactive`, you will be prompted for each duplicate group.
+
+You can:
+
+- Type `a` to delete **all but the first** file (safe default)
+- Enter a list of file numbers to delete specific ones (e.g. `1,2,3`)
+- Type `s` to **skip** the group
+
+Example prompt:
+```
+📂 Duplicate group (Size: 2.1 MB, Hash: 91ac5e2a):
+  [0] /home/user/docs/file1.pdf
+  [1] /home/user/Downloads/file1 (copy).pdf
+  [2] /mnt/backup/file1 (1).pdf
+Enter number(s) of files to delete (comma-separated), 'a' for all but first, or 's' to skip:
 ```
 
 ---
