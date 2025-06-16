@@ -1,0 +1,20 @@
+[project]
+name = "filedupfinder"
+version = "0.4.0"
+description = "A high-performance, parallel Python tool to detect and manage duplicate files."
+readme = "README.md"
+authors = [
+    { name = "Ahmad Alzoubi" }
+]
+license = { file = "LICENSE" }
+dependencies = [
+    "tqdm>=4.66.0,<5.0.0"
+]
+requires-python = ">=3.8"
+
+[project.scripts]
+filedupfinder = "filedupfinder.__main__:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

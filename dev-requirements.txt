@@ -1,0 +1,4 @@
+# Development dependencies for formatting, type checking, and testing
+pytest>=7.4.0,<8.0.0      # Unit testing
+mypy>=1.5.0,<2.0.0        # Static type checks
+black>=23.9.0,<24.0.0     # Code formatting
