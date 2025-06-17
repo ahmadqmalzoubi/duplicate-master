@@ -12,6 +12,17 @@ from filedupfinder.logger import setup_logger
 from filedupfinder.exporter import export_results
 
 
+class SortableItem(QTableWidgetItem):
+    def __init__(self, display_text, sort_value):
+        super().__init__(display_text)
+        self.sort_value = sort_value
+
+    def __lt__(self, other):
+        if isinstance(other, SortableItem):
+            return self.sort_value < other.sort_value
+        return super().__lt__(other)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -23,11 +34,12 @@ class MainWindow(QMainWindow):
 
         self.folder_label = QLabel("No folder selected")
         self.result_table = QTableWidget(0, 4)
-        self.result_table.setHorizontalHeaderLabels(
-            ["Group", "Size", "Hash (last 8)", "Path"])
+        self.result_table.setHorizontalHeaderLabels([
+            "Group", "Size", "Hash (last 8)", "Path"])
         self.result_table.horizontalHeader().setStretchLastSection(True)
         self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.result_table.setSelectionMode(QTableWidget.MultiSelection)
+        self.result_table.setSortingEnabled(True)
 
         self.select_button = QPushButton("Select Folder")
         self.select_button.clicked.connect(self.select_folder)
@@ -142,18 +154,24 @@ class MainWindow(QMainWindow):
 
         total_space, savings = analyze_space_savings(self.duplicates)
 
+        self.result_table.setSortingEnabled(False)
+
         group_id = 1
         for (size, hash), paths in sorted(self.duplicates.items()):
             for path in paths:
                 row = self.result_table.rowCount()
                 self.result_table.insertRow(row)
                 self.result_table.setItem(
-                    row, 0, QTableWidgetItem(str(group_id)))
+                    row, 0, SortableItem(str(group_id), group_id))
                 self.result_table.setItem(
-                    row, 1, QTableWidgetItem(format_bytes(size)))
-                self.result_table.setItem(row, 2, QTableWidgetItem(hash[-8:]))
+                    row, 1, SortableItem(format_bytes(size), size))
+                item = QTableWidgetItem(f"{hash[:8]}...{hash[-8:]}")
+                item.setToolTip(hash)
+                self.result_table.setItem(row, 2, item)
                 self.result_table.setItem(row, 3, QTableWidgetItem(path))
             group_id += 1
+
+        self.result_table.setSortingEnabled(True)
 
         self.logger.info("")
         self.logger.info("📊 Scan Summary:")
