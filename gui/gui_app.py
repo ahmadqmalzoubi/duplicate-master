@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QSpinBox
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QFont, QColor, QBrush
 from filedupfinder.deduper import find_duplicates
 from filedupfinder.analyzer import analyze_space_savings, format_bytes
 from filedupfinder.logger import setup_logger
@@ -41,6 +42,7 @@ class MainWindow(QMainWindow):
         self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.result_table.setSelectionMode(QTableWidget.MultiSelection)
         self.result_table.setSortingEnabled(True)
+        self.result_table.setFont(QFont("Segoe UI", 10))
 
         self.filter_input = QLineEdit()
         self.filter_input.setPlaceholderText("Filter by file path...")
@@ -58,23 +60,28 @@ class MainWindow(QMainWindow):
         self.max_size_input.setValue(1024 * 1024)
         self.max_size_input.valueChanged.connect(self.apply_filter)
 
-        self.select_button = QPushButton("Select Folder")
+        self.select_button = QPushButton(
+            QIcon.fromTheme("folder"), "Select Folder")
         self.select_button.clicked.connect(self.select_folder)
 
-        self.scan_button = QPushButton("Start Scan")
+        self.scan_button = QPushButton(
+            QIcon.fromTheme("system-search"), "Start Scan")
         self.scan_button.clicked.connect(self.start_scan)
         self.scan_button.setEnabled(False)
 
-        self.confirm_delete_button = QPushButton("🗑️ Confirm Deletion")
+        self.confirm_delete_button = QPushButton(
+            QIcon.fromTheme("edit-delete"), "🗑️ Confirm Deletion")
         self.confirm_delete_button.setVisible(False)
         self.confirm_delete_button.clicked.connect(
             self.confirm_selected_deletion)
 
-        self.export_json_button = QPushButton("📤 Export to JSON")
+        self.export_json_button = QPushButton(
+            QIcon.fromTheme("document-save"), "📤 Export to JSON")
         self.export_json_button.clicked.connect(self.export_to_json)
         self.export_json_button.setVisible(False)
 
-        self.export_csv_button = QPushButton("📤 Export to CSV")
+        self.export_csv_button = QPushButton(
+            QIcon.fromTheme("document-save"), "📤 Export to CSV")
         self.export_csv_button.clicked.connect(self.export_to_csv)
         self.export_csv_button.setVisible(False)
 
@@ -105,6 +112,9 @@ class MainWindow(QMainWindow):
         deletion_group = QGroupBox("Deletion Options")
         deletion_group.setLayout(deletion_layout)
 
+        filter_group = QGroupBox("Results Filter")
+        filter_group.setLayout(filter_layout)
+
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.select_button)
         button_layout.addWidget(self.scan_button)
@@ -115,11 +125,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         layout.addWidget(self.folder_label)
         layout.addLayout(button_layout)
-
         layout.addWidget(deletion_group)
-
-        filter_group = QGroupBox("Results Filter")
-        filter_group.setLayout(filter_layout)
         layout.addWidget(filter_group)
         layout.addWidget(self.result_table)
         layout.addWidget(QLabel("Log Output:"))
@@ -199,6 +205,7 @@ class MainWindow(QMainWindow):
                 path_item = QTableWidgetItem(path)
                 path_item.setToolTip(str(size))
                 self.result_table.setItem(row, 3, path_item)
+
             group_id += 1
 
         self.result_table.setSortingEnabled(True)
