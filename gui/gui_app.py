@@ -1,0 +1,261 @@
+import sys
+import os
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton,
+    QLabel, QFileDialog, QTableWidget, QTableWidgetItem, QHBoxLayout, QTextEdit,
+    QCheckBox, QRadioButton, QButtonGroup, QGroupBox, QMessageBox
+)
+from PySide6.QtCore import Qt
+from filedupfinder.deduper import find_duplicates
+from filedupfinder.analyzer import analyze_space_savings, format_bytes
+from filedupfinder.logger import setup_logger
+from filedupfinder.exporter import export_results
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Duplicate File Finder")
+        self.resize(1000, 600)
+
+        self.logger_output = QTextEdit()
+        self.logger_output.setReadOnly(True)
+
+        self.folder_label = QLabel("No folder selected")
+        self.result_table = QTableWidget(0, 4)
+        self.result_table.setHorizontalHeaderLabels(
+            ["Group", "Size", "Hash (last 8)", "Path"])
+        self.result_table.horizontalHeader().setStretchLastSection(True)
+        self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.result_table.setSelectionMode(QTableWidget.MultiSelection)
+
+        self.select_button = QPushButton("Select Folder")
+        self.select_button.clicked.connect(self.select_folder)
+
+        self.scan_button = QPushButton("Start Scan")
+        self.scan_button.clicked.connect(self.start_scan)
+        self.scan_button.setEnabled(False)
+
+        self.confirm_delete_button = QPushButton("🗑️ Confirm Deletion")
+        self.confirm_delete_button.setVisible(False)
+        self.confirm_delete_button.clicked.connect(
+            self.confirm_selected_deletion)
+
+        self.export_json_button = QPushButton("📤 Export to JSON")
+        self.export_json_button.clicked.connect(self.export_to_json)
+        self.export_json_button.setVisible(False)
+
+        self.export_csv_button = QPushButton("📤 Export to CSV")
+        self.export_csv_button.clicked.connect(self.export_to_csv)
+        self.export_csv_button.setVisible(False)
+
+        self.delete_checkbox = QCheckBox("Enable deletion")
+        self.dry_run_radio = QRadioButton("Dry run only")
+        self.dry_run_radio.setChecked(True)
+        self.delete_all_radio = QRadioButton(
+            "Delete all duplicates (keep one)")
+        self.interactive_radio = QRadioButton("Prompt before each group")
+
+        self.delete_mode_group = QButtonGroup()
+        self.delete_mode_group.addButton(self.dry_run_radio)
+        self.delete_mode_group.addButton(self.delete_all_radio)
+        self.delete_mode_group.addButton(self.interactive_radio)
+
+        deletion_layout = QVBoxLayout()
+        deletion_layout.addWidget(self.delete_checkbox)
+        deletion_layout.addWidget(self.dry_run_radio)
+        deletion_layout.addWidget(self.delete_all_radio)
+        deletion_layout.addWidget(self.interactive_radio)
+
+        deletion_group = QGroupBox("Deletion Options")
+        deletion_group.setLayout(deletion_layout)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.select_button)
+        button_layout.addWidget(self.scan_button)
+        button_layout.addWidget(self.confirm_delete_button)
+        button_layout.addWidget(self.export_json_button)
+        button_layout.addWidget(self.export_csv_button)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.folder_label)
+        layout.addLayout(button_layout)
+        layout.addWidget(deletion_group)
+        layout.addWidget(self.result_table)
+        layout.addWidget(QLabel("Log Output:"))
+        layout.addWidget(self.logger_output)
+
+        container = QWidget()
+        container.setLayout(layout)
+        self.setCentralWidget(container)
+
+        self.logger = setup_logger(
+            type('Args', (), {"loglevel": "info", "logfile": None})())
+        self.logger.addHandler(self._log_handler())
+
+        self.selected_folder = None
+        self.duplicates = {}
+
+    def _log_handler(self):
+        from logging import Handler
+
+        class QtHandler(Handler):
+            def emit(inner_self, record):
+                msg = inner_self.format(record)
+                self.logger_output.append(msg)
+
+        return QtHandler()
+
+    def select_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select Folder to Scan")
+        if folder:
+            self.selected_folder = folder
+            self.folder_label.setText(folder)
+            self.scan_button.setEnabled(True)
+
+    def start_scan(self):
+        self.logger_output.clear()
+        self.result_table.setRowCount(0)
+        self.confirm_delete_button.setVisible(False)
+        self.export_json_button.setVisible(False)
+        self.export_csv_button.setVisible(False)
+
+        if not self.selected_folder:
+            return
+
+        self.logger_output.append(
+            f"\n\n🗂️ Scan started for: {self.selected_folder}\n{'-'*60}")
+
+        self.duplicates = find_duplicates(
+            base_dir=self.selected_folder,
+            min_size=4096,
+            max_size=4294967296,
+            quick_mode=True,
+            multi_region=False,
+            exclude=[],
+            exclude_dir=[],
+            exclude_hidden=False,
+            threads=os.cpu_count(),
+            logger=self.logger
+        )
+
+        total_space, savings = analyze_space_savings(self.duplicates)
+
+        group_id = 1
+        for (size, hash), paths in sorted(self.duplicates.items()):
+            for path in paths:
+                row = self.result_table.rowCount()
+                self.result_table.insertRow(row)
+                self.result_table.setItem(
+                    row, 0, QTableWidgetItem(str(group_id)))
+                self.result_table.setItem(
+                    row, 1, QTableWidgetItem(format_bytes(size)))
+                self.result_table.setItem(row, 2, QTableWidgetItem(hash[-8:]))
+                self.result_table.setItem(row, 3, QTableWidgetItem(path))
+            group_id += 1
+
+        self.logger.info("")
+        self.logger.info("📊 Scan Summary:")
+        self.logger.info(
+            f"   • {len(self.duplicates)} duplicate groups detected")
+        self.logger.info(
+            f"   • {sum(len(v) for v in self.duplicates.values())} duplicate files in total")
+        self.logger.info(
+            f"   • {format_bytes(total_space)} of space used by duplicates")
+        self.logger.info(f"   • {format_bytes(savings)} can be reclaimed")
+
+        if self.delete_checkbox.isChecked():
+            if self.interactive_radio.isChecked():
+                self.confirm_delete_button.setVisible(True)
+            else:
+                self.perform_deletion()
+
+        self.export_json_button.setVisible(True)
+        self.export_csv_button.setVisible(True)
+
+    def perform_deletion(self):
+        self.logger.info("\n🚮 Deletion Process Started")
+        dry_run = self.dry_run_radio.isChecked()
+
+        for (size, hash), paths in sorted(self.duplicates.items()):
+            if len(paths) < 2:
+                continue
+            to_delete = paths[1:]
+
+            for path in to_delete:
+                if dry_run:
+                    self.logger.info(f"[DRY-RUN] Would delete: {path}")
+                else:
+                    try:
+                        os.remove(path)
+                        self.logger.info(f"Deleted: {path}")
+                    except Exception as e:
+                        self.logger.error(f"❌ Failed to delete {path}: {e}")
+
+        if dry_run:
+            self.logger.info("\n✅ Dry-run complete. No files were deleted.")
+        else:
+            self.logger.info("\n✅ Deletion complete.")
+
+    def confirm_selected_deletion(self):
+        selected_rows = self.result_table.selectionModel().selectedRows()
+        if not selected_rows:
+            self.logger.info("⚠️ No files selected for deletion.")
+            return
+
+        confirm = QMessageBox.question(self, "Confirm Deletion",
+                                       f"Are you sure you want to delete {len(selected_rows)} selected file(s)?",
+                                       QMessageBox.Yes | QMessageBox.No)
+
+        if confirm != QMessageBox.Yes:
+            self.logger.info("⏹️ Deletion cancelled by user.")
+            return
+
+        deleted_count = 0
+        for row in selected_rows:
+            path_item = self.result_table.item(row.row(), 3)
+            if path_item:
+                path = path_item.text()
+                try:
+                    os.remove(path)
+                    self.logger.info(f"🗑️ Deleted: {path}")
+                    deleted_count += 1
+                except Exception as e:
+                    self.logger.error(f"❌ Failed to delete {path}: {e}")
+
+        self.logger.info(
+            f"\n✅ Deletion complete. {deleted_count} files deleted.")
+
+    def export_to_json(self):
+        if not self.duplicates:
+            self.logger.info("⚠️ No results to export.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export to JSON", "duplicates.json", "JSON Files (*.json)")
+        if path:
+            try:
+                export_results(self.duplicates, type(
+                    'Args', (), {"json_out": path, "csv_out": None}), self.logger)
+            except Exception as e:
+                self.logger.error(f"❌ Failed to export JSON: {e}")
+
+    def export_to_csv(self):
+        if not self.duplicates:
+            self.logger.info("⚠️ No results to export.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export to CSV", "duplicates.csv", "CSV Files (*.csv)")
+        if path:
+            try:
+                export_results(self.duplicates, type(
+                    'Args', (), {"json_out": None, "csv_out": path}), self.logger)
+            except Exception as e:
+                self.logger.error(f"❌ Failed to export CSV: {e}")
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
