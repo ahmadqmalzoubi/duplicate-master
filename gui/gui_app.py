@@ -3,7 +3,8 @@ import os
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton,
     QLabel, QFileDialog, QTableWidget, QTableWidgetItem, QHBoxLayout, QTextEdit,
-    QCheckBox, QRadioButton, QButtonGroup, QGroupBox, QMessageBox
+    QCheckBox, QRadioButton, QButtonGroup, QGroupBox, QMessageBox,
+    QLineEdit, QSpinBox
 )
 from PySide6.QtCore import Qt
 from filedupfinder.deduper import find_duplicates
@@ -41,6 +42,22 @@ class MainWindow(QMainWindow):
         self.result_table.setSelectionMode(QTableWidget.MultiSelection)
         self.result_table.setSortingEnabled(True)
 
+        self.filter_input = QLineEdit()
+        self.filter_input.setPlaceholderText("Filter by file path...")
+        self.filter_input.textChanged.connect(self.apply_filter)
+
+        self.min_size_input = QSpinBox()
+        self.min_size_input.setPrefix("Min KB: ")
+        self.min_size_input.setMaximum(1024 * 1024)
+        self.min_size_input.setValue(0)
+        self.min_size_input.valueChanged.connect(self.apply_filter)
+
+        self.max_size_input = QSpinBox()
+        self.max_size_input.setPrefix("Max KB: ")
+        self.max_size_input.setMaximum(1024 * 1024)
+        self.max_size_input.setValue(1024 * 1024)
+        self.max_size_input.valueChanged.connect(self.apply_filter)
+
         self.select_button = QPushButton("Select Folder")
         self.select_button.clicked.connect(self.select_folder)
 
@@ -73,6 +90,12 @@ class MainWindow(QMainWindow):
         self.delete_mode_group.addButton(self.delete_all_radio)
         self.delete_mode_group.addButton(self.interactive_radio)
 
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Filter:"))
+        filter_layout.addWidget(self.filter_input)
+        filter_layout.addWidget(self.min_size_input)
+        filter_layout.addWidget(self.max_size_input)
+
         deletion_layout = QVBoxLayout()
         deletion_layout.addWidget(self.delete_checkbox)
         deletion_layout.addWidget(self.dry_run_radio)
@@ -92,7 +115,12 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         layout.addWidget(self.folder_label)
         layout.addLayout(button_layout)
+
         layout.addWidget(deletion_group)
+
+        filter_group = QGroupBox("Results Filter")
+        filter_group.setLayout(filter_layout)
+        layout.addWidget(filter_group)
         layout.addWidget(self.result_table)
         layout.addWidget(QLabel("Log Output:"))
         layout.addWidget(self.logger_output)
@@ -168,7 +196,9 @@ class MainWindow(QMainWindow):
                 item = QTableWidgetItem(f"{hash[:8]}...{hash[-8:]}")
                 item.setToolTip(hash)
                 self.result_table.setItem(row, 2, item)
-                self.result_table.setItem(row, 3, QTableWidgetItem(path))
+                path_item = QTableWidgetItem(path)
+                path_item.setToolTip(str(size))
+                self.result_table.setItem(row, 3, path_item)
             group_id += 1
 
         self.result_table.setSortingEnabled(True)
@@ -191,6 +221,22 @@ class MainWindow(QMainWindow):
 
         self.export_json_button.setVisible(True)
         self.export_csv_button.setVisible(True)
+
+    def apply_filter(self):
+        keyword = self.filter_input.text().lower()
+        min_kb = self.min_size_input.value()
+        max_kb = self.max_size_input.value()
+
+        for row in range(self.result_table.rowCount()):
+            path = self.result_table.item(row, 3).text().lower()
+            size_bytes = int(self.result_table.item(row, 3).toolTip())
+            size_kb = size_bytes / 1024
+
+            matches_keyword = keyword in path
+            matches_size = min_kb <= size_kb <= max_kb
+
+            self.result_table.setRowHidden(
+                row, not (matches_keyword and matches_size))
 
     def perform_deletion(self):
         self.logger.info("\n🚮 Deletion Process Started")
