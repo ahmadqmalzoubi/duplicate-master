@@ -1,17 +1,19 @@
-import sys
-import os
+from filedupfinder.exporter import export_results
+from filedupfinder.logger import setup_logger
+from filedupfinder.analyzer import analyze_space_savings, format_bytes
+from filedupfinder.deduper import find_duplicates
+from PySide6.QtGui import QIcon, QFont, QColor, QBrush
+from PySide6.QtCore import Qt, QThread, Signal, QObject
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton,
     QLabel, QFileDialog, QTableWidget, QTableWidgetItem, QHBoxLayout, QTextEdit,
     QCheckBox, QRadioButton, QButtonGroup, QGroupBox, QMessageBox,
     QLineEdit, QSpinBox
 )
-from PySide6.QtCore import Qt, QThread, Signal, QObject
-from PySide6.QtGui import QIcon, QFont, QColor, QBrush
-from filedupfinder.deduper import find_duplicates
-from filedupfinder.analyzer import analyze_space_savings, format_bytes
-from filedupfinder.logger import setup_logger
-from filedupfinder.exporter import export_results
+import sys
+import os
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 
 class SortableItem(QTableWidgetItem):
@@ -167,21 +169,29 @@ class MainWindow(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
 
-        self.logger = setup_logger(
-            type('Args', (), {"loglevel": "info", "logfile": None})())
-        self.logger.addHandler(self._log_handler())
+        import logging
+        self.logger = logging.getLogger("fdf_gui")
+        self.logger.setLevel(logging.INFO)
+        if not self.logger.handlers:
+            self.logger.addHandler(self._log_handler())
+        self.logger.propagate = False
+        # self.logger.addHandler(self._log_handler())
 
         self.selected_folder = None
         self.duplicates = {}
         self.thread = None
 
     def _log_handler(self):
-        from logging import Handler
+        from logging import Handler, Formatter
 
         class QtHandler(Handler):
             def emit(inner_self, record):
                 msg = inner_self.format(record)
                 self.logger_output.append(msg)
+
+        handler = QtHandler()
+        handler.setFormatter(Formatter('%(message)s'))
+        return handler
 
         return QtHandler()
 

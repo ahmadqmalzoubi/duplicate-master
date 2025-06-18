@@ -1,4 +1,5 @@
 import os
+import sys
 import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
@@ -31,7 +32,7 @@ def batch_hash_files(paths, buffer_size, multi_region, threads):
         futures = {executor.submit(
             blake2bsum, p, buffer_size, multi_region): p for p in paths}
         results = {}
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Hashing files"):
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Hashing files", disable=(sys.stdout is None)):
             path = futures[future]
             try:
                 results[path] = future.result()
