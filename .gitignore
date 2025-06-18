@@ -23,6 +23,7 @@ dist/
 
 # PyInstaller artifacts
 *.spec
+!filedupfinder.spec
 
 # Test output or cache
 .pytest_cache/
