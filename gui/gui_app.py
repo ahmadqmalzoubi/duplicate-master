@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QCheckBox, QRadioButton, QButtonGroup, QGroupBox, QMessageBox,
     QLineEdit, QSpinBox
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal, QObject
 from PySide6.QtGui import QIcon, QFont, QColor, QBrush
 from filedupfinder.deduper import find_duplicates
 from filedupfinder.analyzer import analyze_space_savings, format_bytes
@@ -23,6 +23,38 @@ class SortableItem(QTableWidgetItem):
         if isinstance(other, SortableItem):
             return self.sort_value < other.sort_value
         return super().__lt__(other)
+
+
+class ScanWorker(QObject):
+    finished = Signal(object)
+    log = Signal(str)
+
+    def __init__(self, folder, logger):
+        super().__init__()
+        self.folder = folder
+        self.logger = logger
+
+    def run(self):
+        try:
+            self.log.emit(f"\n\n🗂️ Scan started for: {self.folder}\n{'-'*60}")
+            duplicates = find_duplicates(
+                base_dir=self.folder,
+                min_size=4096,
+                max_size=4294967296,
+                quick_mode=True,
+                multi_region=False,
+                exclude=[],
+                exclude_dir=[],
+                exclude_hidden=False,
+                threads=os.cpu_count(),
+                logger=self.logger
+            )
+            self.log.emit(
+                f"✅ Scan complete. Found {len(duplicates)} duplicate groups.")
+            self.finished.emit(duplicates)
+        except Exception as e:
+            self.log.emit(f"❌ Error during scan: {str(e)}")
+            self.finished.emit({})
 
 
 class MainWindow(QMainWindow):
@@ -141,6 +173,7 @@ class MainWindow(QMainWindow):
 
         self.selected_folder = None
         self.duplicates = {}
+        self.thread = None
 
     def _log_handler(self):
         from logging import Handler
@@ -170,26 +203,25 @@ class MainWindow(QMainWindow):
         if not self.selected_folder:
             return
 
-        self.logger_output.append(
-            f"\n\n🗂️ Scan started for: {self.selected_folder}\n{'-'*60}")
+        self.thread = QThread()
+        self.worker = ScanWorker(self.selected_folder, self.logger)
+        self.worker.moveToThread(self.thread)
+        self.worker.finished.connect(self.on_scan_finished)
+        self.worker.log.connect(self.logger_output.append)
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
 
-        self.duplicates = find_duplicates(
-            base_dir=self.selected_folder,
-            min_size=4096,
-            max_size=4294967296,
-            quick_mode=True,
-            multi_region=False,
-            exclude=[],
-            exclude_dir=[],
-            exclude_hidden=False,
-            threads=os.cpu_count(),
-            logger=self.logger
-        )
+    def on_scan_finished(self, duplicates):
+        self.thread.quit()
+        self.thread.wait()
+        self.worker.deleteLater()
+        self.thread.deleteLater()
+
+        self.duplicates = duplicates
 
         total_space, savings = analyze_space_savings(self.duplicates)
 
         self.result_table.setSortingEnabled(False)
-
         group_id = 1
         for (size, hash), paths in sorted(self.duplicates.items()):
             for path in paths:
@@ -205,7 +237,6 @@ class MainWindow(QMainWindow):
                 path_item = QTableWidgetItem(path)
                 path_item.setToolTip(str(size))
                 self.result_table.setItem(row, 3, path_item)
-
             group_id += 1
 
         self.result_table.setSortingEnabled(True)
