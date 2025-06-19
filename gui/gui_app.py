@@ -3,7 +3,7 @@ from filedupfinder.logger import setup_logger
 from filedupfinder.analyzer import analyze_space_savings, format_bytes
 from filedupfinder.deduper import find_duplicates
 from PySide6.QtGui import QIcon, QFont, QColor, QBrush
-from PySide6.QtCore import Qt, QThread, Signal, QObject
+from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton,
     QLabel, QFileDialog, QTableWidget, QTableWidgetItem, QHBoxLayout, QTextEdit,
@@ -37,8 +37,15 @@ class ScanWorker(QObject):
         self.logger = logger
 
     def run(self):
+        def log_msg(msg):
+            if self.logger:
+                self.logger.info(msg)
+            else:
+                self.log.emit(msg)
+                print(msg)
+
         try:
-            self.log.emit(f"\n\n🗂️ Scan started for: {self.folder}\n{'-'*60}")
+            log_msg(f"\n\n🗂️ Scan started for: {self.folder}\n{'-'*60}")
             duplicates = find_duplicates(
                 base_dir=self.folder,
                 min_size=4096,
@@ -46,16 +53,20 @@ class ScanWorker(QObject):
                 quick_mode=True,
                 multi_region=False,
                 exclude=[],
-                exclude_dir=[],
+                exclude_dir=[
+                    "System Volume Information", "$RECYCLE.BIN", "$Recycle.Bin",
+                    "Documents and Settings", "MSOCache", "PerfLogs",
+                    "Program Files", "Program Files (x86)", "Windows", "ProgramData"
+                ],
                 exclude_hidden=False,
                 threads=os.cpu_count(),
                 logger=self.logger
             )
-            self.log.emit(
+            log_msg(
                 f"✅ Scan complete. Found {len(duplicates)} duplicate groups.")
             self.finished.emit(duplicates)
         except Exception as e:
-            self.log.emit(f"❌ Error during scan: {str(e)}")
+            log_msg(f"❌ Error during scan: {str(e)}")
             self.finished.emit({})
 
 
@@ -175,7 +186,6 @@ class MainWindow(QMainWindow):
         if not self.logger.handlers:
             self.logger.addHandler(self._log_handler())
         self.logger.propagate = False
-        # self.logger.addHandler(self._log_handler())
 
         self.selected_folder = None
         self.duplicates = {}
@@ -192,8 +202,6 @@ class MainWindow(QMainWindow):
         handler = QtHandler()
         handler.setFormatter(Formatter('%(message)s'))
         return handler
-
-        return QtHandler()
 
     def select_folder(self):
         folder = QFileDialog.getExistingDirectory(
@@ -218,7 +226,8 @@ class MainWindow(QMainWindow):
         self.worker.moveToThread(self.thread)
         self.worker.finished.connect(self.on_scan_finished)
         self.worker.log.connect(self.logger_output.append)
-        self.thread.started.connect(self.worker.run)
+        self.thread.started.connect(
+            lambda: QTimer.singleShot(100, self.worker.run))
         self.thread.start()
 
     def on_scan_finished(self, duplicates):
