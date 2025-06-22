@@ -31,18 +31,31 @@ class ScanWorker(QObject):
     finished = Signal(object)
     log = Signal(str)
 
-    def __init__(self, folder, logger):
+    def __init__(self, folder):
         super().__init__()
         self.folder = folder
-        self.logger = logger
 
     def run(self):
+        class SignallingLogger:
+            def __init__(self, log_signal):
+                self.log_signal = log_signal
+
+            def info(self, msg):
+                self.log_signal.emit(msg)
+
+            def debug(self, msg):
+                pass  # Or emit a different signal if needed
+
+            def warning(self, msg):
+                self.log_signal.emit(f"WARNING: {msg}")
+
+            def error(self, msg):
+                self.log_signal.emit(f"ERROR: {msg}")
+
+        logger_proxy = SignallingLogger(self.log)
+
         def log_msg(msg):
-            if self.logger:
-                self.logger.info(msg)
-            else:
-                self.log.emit(msg)
-                print(msg)
+            logger_proxy.info(msg)
 
         try:
             log_msg(f"\n\n🗂️ Scan started for: {self.folder}\n{'-'*60}")
@@ -60,7 +73,7 @@ class ScanWorker(QObject):
                 ],
                 exclude_hidden=False,
                 threads=os.cpu_count(),
-                logger=self.logger
+                logger=logger_proxy
             )
             log_msg(
                 f"✅ Scan complete. Found {len(duplicates)} duplicate groups.")
@@ -82,12 +95,12 @@ class MainWindow(QMainWindow):
         self.folder_label = QLabel("No folder selected")
         self.result_table = QTableWidget(0, 4)
         self.result_table.setHorizontalHeaderLabels([
-            "Group", "Size", "Hash (last 8)", "Path"])
+            "Group", "Size", "Hash", "Path"])
         self.result_table.horizontalHeader().setStretchLastSection(True)
         self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.result_table.setSelectionMode(QTableWidget.MultiSelection)
         self.result_table.setSortingEnabled(True)
-        self.result_table.setFont(QFont("Segoe UI", 10))
+        # self.result_table.setFont(QFont("Sans Serif", 10))
 
         self.filter_input = QLineEdit()
         self.filter_input.setPlaceholderText("Filter by file path...")
@@ -222,7 +235,7 @@ class MainWindow(QMainWindow):
             return
 
         self.thread = QThread()
-        self.worker = ScanWorker(self.selected_folder, self.logger)
+        self.worker = ScanWorker(self.selected_folder)
         self.worker.moveToThread(self.thread)
         self.worker.finished.connect(self.on_scan_finished)
         self.worker.log.connect(self.logger_output.append)
