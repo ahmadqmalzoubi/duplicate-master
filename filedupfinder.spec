@@ -3,11 +3,20 @@
 block_cipher = None
 
 a = Analysis(
-    ['gui/gui_app.py'],
-    pathex=['.', 'src'],
+    ['src/gui/gui_app.py'],
+    pathex=['.', 'src', 'src/filedupfinder'],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=[
+        'filedupfinder.hasher',
+        'filedupfinder.deduper', 
+        'filedupfinder.analyzer',
+        'filedupfinder.deletion',
+        'filedupfinder.exporter',
+        'filedupfinder.logger',
+        'filedupfinder.scanner',
+        'gui.gui_app',
+    ],
     hookspath=[],
     runtime_hooks=[],
     excludes=[],
