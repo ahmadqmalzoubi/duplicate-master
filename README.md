@@ -180,10 +180,62 @@ Enter number(s) of files to delete (comma-separated), 'a' for all but first, or 
    git checkout -b feat/my-feature
    ```
 2. Follow PEP 8 conventions
-3. Test changes:
+3. Write tests for new features
+4. Run the test suite:
    ```bash
-   python3 -m doctest file-duplicate-finder.py
+   python -m pytest tests/
    ```
+5. Ensure all tests pass before submitting a pull request
+
+---
+
+## 🧪 Testing
+
+This project includes a comprehensive unit test suite with **54 tests** covering all core functionality.
+
+### Running Tests
+
+```bash
+# Run all tests
+python -m pytest tests/
+
+# Run tests with verbose output
+python -m pytest tests/ -v
+
+# Run tests for a specific module
+python -m pytest tests/test_analyzer.py -v
+
+# Run tests with coverage (if pytest-cov is installed)
+python -m pytest tests/ --cov=filedupfinder
+```
+
+### Test Coverage
+
+The test suite covers all core modules:
+
+- **analyzer.py** (11 tests) - Space analysis and byte formatting
+- **cli.py** (6 tests) - Command-line argument parsing and validation
+- **deduper.py** (7 tests) - Duplicate detection logic (quick/full mode)
+- **deletion.py** (10 tests) - File deletion and interactive handling
+- **exporter.py** (7 tests) - JSON/CSV export functionality
+- **hasher.py** (3 tests) - File hashing and batch processing
+- **logger.py** (6 tests) - Logging setup and configuration
+- **scanner.py** (4 tests) - File discovery and filtering
+
+### Test Features
+
+- **Mock-based testing** - No filesystem dependencies for fast execution
+- **Edge case coverage** - Empty data, errors, invalid inputs
+- **Interactive mode testing** - User input simulation
+- **Error handling** - File deletion failures, parsing errors
+- **Fast execution** - All tests run in under 0.1 seconds
+
+### Development Workflow
+
+1. Write tests for new features
+2. Run the test suite: `python -m pytest tests/`
+3. Ensure all tests pass before committing
+4. Add new test files to the `tests/` directory
 
 ---
 
