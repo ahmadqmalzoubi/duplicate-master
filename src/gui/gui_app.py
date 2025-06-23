@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton,
     QLabel, QFileDialog, QTableWidget, QTableWidgetItem, QHBoxLayout, QTextEdit,
     QCheckBox, QRadioButton, QButtonGroup, QGroupBox, QMessageBox,
-    QLineEdit, QSpinBox, QAbstractItemView
+    QLineEdit, QSpinBox, QAbstractItemView, QProgressBar
 )
 import sys
 import os
@@ -30,10 +30,12 @@ class SortableItem(QTableWidgetItem):
 class ScanWorker(QObject):
     finished = Signal(object)
     log = Signal(str)
+    progress = Signal(int, str)
 
-    def __init__(self, folder):
+    def __init__(self, folder, options):
         super().__init__()
         self.folder = folder
+        self.options = options
 
     def run(self):
         class SignallingLogger:
@@ -61,19 +63,16 @@ class ScanWorker(QObject):
             log_msg(f"\n\n🗂️ Scan started for: {self.folder}\n{'-'*60}")
             duplicates = find_duplicates(
                 base_dir=self.folder,
-                min_size=4096,
-                max_size=4294967296,
-                quick_mode=True,
-                multi_region=False,
-                exclude=[],
-                exclude_dir=[
-                    "System Volume Information", "$RECYCLE.BIN", "$Recycle.Bin",
-                    "Documents and Settings", "MSOCache", "PerfLogs",
-                    "Program Files", "Program Files (x86)", "Windows", "ProgramData"
-                ],
-                exclude_hidden=False,
-                threads=os.cpu_count(),
-                logger=logger_proxy
+                min_size=self.options['min_size'],
+                max_size=self.options['max_size'],
+                quick_mode=self.options['quick_mode'],
+                multi_region=self.options['multi_region'],
+                exclude=self.options['exclude_files'],
+                exclude_dir=self.options['exclude_dirs'],
+                exclude_hidden=self.options['exclude_hidden'],
+                threads=os.cpu_count() or 1,
+                logger=logger_proxy,
+                progress_callback=self.progress.emit
             )
             log_msg(
                 f"✅ Scan complete. Found {len(duplicates)} duplicate groups.")
@@ -102,47 +101,68 @@ class MainWindow(QMainWindow):
         self.result_table.setSortingEnabled(True)
         # self.result_table.setFont(QFont("Sans Serif", 10))
 
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        self.progress_label = QLabel("")
+        self.progress_label.setVisible(False)
+
         self.filter_input = QLineEdit()
         self.filter_input.setPlaceholderText("Filter by file path...")
         self.filter_input.textChanged.connect(self.apply_filter)
 
         self.min_size_input = QSpinBox()
-        self.min_size_input.setPrefix("Min KB: ")
-        self.min_size_input.setMaximum(1024 * 1024)
-        self.min_size_input.setValue(0)
-        self.min_size_input.valueChanged.connect(self.apply_filter)
+        self.min_size_input.setPrefix("Min MB: ")
+        self.min_size_input.setMaximum(10240)  # 10 GB
+        self.min_size_input.setValue(1) # 1 MB
 
         self.max_size_input = QSpinBox()
-        self.max_size_input.setPrefix("Max KB: ")
-        self.max_size_input.setMaximum(1024 * 1024)
-        self.max_size_input.setValue(1024 * 1024)
-        self.max_size_input.valueChanged.connect(self.apply_filter)
+        self.max_size_input.setPrefix("Max MB: ")
+        self.max_size_input.setMaximum(1024 * 20)  # 20 GB
+        self.max_size_input.setValue(4096)  # 4 GB
 
-        self.select_button = QPushButton(
-            QIcon.fromTheme("folder"), "Select Folder")
-        self.select_button.clicked.connect(self.select_folder)
+        # --- Scan Options ---
+        self.quick_scan_radio = QRadioButton("Quick Scan (fast, less accurate)")
+        self.full_scan_radio = QRadioButton("Full Scan (accurate, default)")
+        self.full_scan_radio.setChecked(True)
+        self.multi_region_scan_radio = QRadioButton("Multi-region Scan (balanced)")
 
-        self.scan_button = QPushButton(
-            QIcon.fromTheme("system-search"), "Start Scan")
-        self.scan_button.clicked.connect(self.start_scan)
-        self.scan_button.setEnabled(False)
+        self.scan_mode_group = QButtonGroup()
+        self.scan_mode_group.addButton(self.quick_scan_radio)
+        self.scan_mode_group.addButton(self.full_scan_radio)
+        self.scan_mode_group.addButton(self.multi_region_scan_radio)
 
-        self.confirm_delete_button = QPushButton(
-            QIcon.fromTheme("edit-delete"), "🗑️ Confirm Deletion")
-        self.confirm_delete_button.setVisible(False)
-        self.confirm_delete_button.clicked.connect(
-            self.confirm_selected_deletion)
+        self.exclude_files_input = QLineEdit()
+        self.exclude_files_input.setPlaceholderText("e.g., *.tmp, *.bak")
+        self.exclude_dirs_input = QLineEdit()
+        self.exclude_dirs_input.setPlaceholderText("e.g., .git, node_modules, $RECYCLE.BIN")
+        self.exclude_dirs_input.setText(".git, node_modules, $RECYCLE.BIN, System Volume Information, Windows")
+        self.exclude_hidden_checkbox = QCheckBox("Exclude hidden files and folders")
+        self.exclude_hidden_checkbox.setChecked(True)
 
-        self.export_json_button = QPushButton(
-            QIcon.fromTheme("document-save"), "📤 Export to JSON")
-        self.export_json_button.clicked.connect(self.export_to_json)
-        self.export_json_button.setVisible(False)
+        scan_options_layout = QVBoxLayout()
+        scan_options_layout.addWidget(QLabel("Scan Mode:"))
+        scan_options_layout.addWidget(self.quick_scan_radio)
+        scan_options_layout.addWidget(self.full_scan_radio)
+        scan_options_layout.addWidget(self.multi_region_scan_radio)
+        
+        size_filter_layout = QHBoxLayout()
+        size_filter_layout.addWidget(QLabel("File Size (MB):"))
+        size_filter_layout.addWidget(self.min_size_input)
+        size_filter_layout.addWidget(self.max_size_input)
+        scan_options_layout.addLayout(size_filter_layout)
 
-        self.export_csv_button = QPushButton(
-            QIcon.fromTheme("document-save"), "📤 Export to CSV")
-        self.export_csv_button.clicked.connect(self.export_to_csv)
-        self.export_csv_button.setVisible(False)
+        scan_options_layout.addSpacing(10)
+        scan_options_layout.addWidget(QLabel("Exclude Files (comma-separated globs):"))
+        scan_options_layout.addWidget(self.exclude_files_input)
+        scan_options_layout.addWidget(QLabel("Exclude Directories (comma-separated):"))
+        scan_options_layout.addWidget(self.exclude_dirs_input)
+        scan_options_layout.addWidget(self.exclude_hidden_checkbox)
 
+        self.scan_options_group = QGroupBox("Scan Options")
+        self.scan_options_group.setLayout(scan_options_layout)
+
+        # --- Deletion Options ---
+        deletion_layout = QVBoxLayout()
         self.delete_checkbox = QCheckBox("Enable deletion")
         self.dry_run_radio = QRadioButton("Dry run only")
         self.dry_run_radio.setChecked(True)
@@ -155,36 +175,60 @@ class MainWindow(QMainWindow):
         self.delete_mode_group.addButton(self.delete_all_radio)
         self.delete_mode_group.addButton(self.interactive_radio)
 
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Filter:"))
-        filter_layout.addWidget(self.filter_input)
-        filter_layout.addWidget(self.min_size_input)
-        filter_layout.addWidget(self.max_size_input)
-
-        deletion_layout = QVBoxLayout()
+        self.deletion_group = QGroupBox("Deletion Options")
+        self.deletion_group.setLayout(deletion_layout)
         deletion_layout.addWidget(self.delete_checkbox)
         deletion_layout.addWidget(self.dry_run_radio)
         deletion_layout.addWidget(self.delete_all_radio)
         deletion_layout.addWidget(self.interactive_radio)
 
-        deletion_group = QGroupBox("Deletion Options")
-        deletion_group.setLayout(deletion_layout)
-
-        filter_group = QGroupBox("Results Filter")
-        filter_group.setLayout(filter_layout)
+        # --- Filter ---
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Filter Results:"))
+        filter_layout.addWidget(self.filter_input)
+        
+        self.filter_group = QGroupBox("Results Filter")
+        self.filter_group.setLayout(filter_layout)
 
         button_layout = QHBoxLayout()
+        self.select_button = QPushButton(
+            QIcon.fromTheme("folder"), "Select Folder")
+        self.select_button.clicked.connect(self.select_folder)
+
+        self.scan_button = QPushButton(
+            QIcon.fromTheme("system-search"), "Start Scan")
+        self.scan_button.clicked.connect(self.start_scan)
+        self.scan_button.setEnabled(False)
+
+        self.delete_button = QPushButton(
+            QIcon.fromTheme("edit-delete"), "🗑️ Delete Duplicates...")
+        self.delete_button.setVisible(False)
+        self.delete_button.clicked.connect(self.run_deletion_process)
+
+        self.export_json_button = QPushButton(
+            QIcon.fromTheme("document-save"), "📤 Export to JSON")
+        self.export_json_button.clicked.connect(self.export_to_json)
+        self.export_json_button.setVisible(False)
+
+        self.export_csv_button = QPushButton(
+            QIcon.fromTheme("document-save"), "📤 Export to CSV")
+        self.export_csv_button.clicked.connect(self.export_to_csv)
+        self.export_csv_button.setVisible(False)
+
         button_layout.addWidget(self.select_button)
         button_layout.addWidget(self.scan_button)
-        button_layout.addWidget(self.confirm_delete_button)
+        button_layout.addWidget(self.delete_button)
         button_layout.addWidget(self.export_json_button)
         button_layout.addWidget(self.export_csv_button)
 
         layout = QVBoxLayout()
         layout.addWidget(self.folder_label)
         layout.addLayout(button_layout)
-        layout.addWidget(deletion_group)
-        layout.addWidget(filter_group)
+        layout.addWidget(self.deletion_group)
+        layout.addWidget(self.scan_options_group)
+        layout.addWidget(self.filter_group)
+        layout.addWidget(self.progress_bar)
+        layout.addWidget(self.progress_label)
         layout.addWidget(self.result_table)
         layout.addWidget(QLabel("Log Output:"))
         layout.addWidget(self.logger_output)
@@ -228,26 +272,42 @@ class MainWindow(QMainWindow):
     def start_scan(self):
         self.logger_output.clear()
         self.result_table.setRowCount(0)
-        self.confirm_delete_button.setVisible(False)
+        self.delete_button.setVisible(False)
         self.export_json_button.setVisible(False)
         self.export_csv_button.setVisible(False)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
+        self.progress_label.setVisible(True)
+        self.progress_label.setText("Starting scan...")
+        self.set_controls_enabled(False)
 
         if not self.selected_folder:
+            self.set_controls_enabled(True)
             return
 
+        scan_options = {
+            "min_size": self.min_size_input.value() * 1024 * 1024,  # MB to Bytes
+            "max_size": self.max_size_input.value() * 1024 * 1024,  # MB to Bytes
+            "quick_mode": self.quick_scan_radio.isChecked(),
+            "multi_region": self.multi_region_scan_radio.isChecked(),
+            "exclude_files": [p.strip() for p in self.exclude_files_input.text().split(',') if p.strip()],
+            "exclude_dirs": [d.strip() for d in self.exclude_dirs_input.text().split(',') if d.strip()],
+            "exclude_hidden": self.exclude_hidden_checkbox.isChecked(),
+        }
+
         self.thread = QThread()
-        self.worker = ScanWorker(self.selected_folder)
+        self.worker = ScanWorker(self.selected_folder, scan_options)
         self.worker.moveToThread(self.thread)
         self.worker.finished.connect(self.on_scan_finished)
         self.worker.log.connect(self.logger_output.append)
-
-        def start_worker_run():
-            if self.worker:
-                self.worker.run()
-
+        self.worker.progress.connect(self.update_progress)
         self.thread.started.connect(
-            lambda: QTimer.singleShot(100, start_worker_run))
+            lambda: QTimer.singleShot(100, self.start_worker_run))
         self.thread.start()
+
+    def start_worker_run(self):
+        if self.worker:
+            self.worker.run()
 
     def on_scan_finished(self, duplicates: Dict[Tuple[int, str], List[str]]):
         if self.thread:
@@ -262,6 +322,10 @@ class MainWindow(QMainWindow):
 
         self.worker = None
         self.thread = None
+
+        self.progress_bar.setVisible(False)
+        self.progress_label.setVisible(False)
+        self.set_controls_enabled(True)
 
         self.duplicates = duplicates
 
@@ -297,19 +361,34 @@ class MainWindow(QMainWindow):
             f"   • {format_bytes(total_space)} of space used by duplicates")
         self.logger.info(f"   • {format_bytes(savings)} can be reclaimed")
 
-        if self.delete_checkbox.isChecked():
-            if self.interactive_radio.isChecked():
-                self.confirm_delete_button.setVisible(True)
-            else:
-                self.perform_deletion()
+        self.delete_button.setVisible(
+            bool(self.duplicates) and self.delete_checkbox.isChecked())
+        self.export_json_button.setVisible(bool(self.duplicates))
+        self.export_csv_button.setVisible(bool(self.duplicates))
 
-        self.export_json_button.setVisible(True)
-        self.export_csv_button.setVisible(True)
+    def set_controls_enabled(self, enabled: bool):
+        self.select_button.setEnabled(enabled)
+        self.scan_button.setEnabled(enabled)
+        self.filter_group.setEnabled(enabled)
+        self.deletion_group.setEnabled(enabled)
+        self.scan_options_group.setEnabled(enabled)
+        # Also control the delete/export buttons
+        if enabled:
+            self.delete_button.setVisible(
+                bool(self.duplicates) and self.delete_checkbox.isChecked())
+            self.export_json_button.setVisible(bool(self.duplicates))
+            self.export_csv_button.setVisible(bool(self.duplicates))
+        else:
+            self.delete_button.setVisible(False)
+            self.export_json_button.setVisible(False)
+            self.export_csv_button.setVisible(False)
+
+    def update_progress(self, value: int, message: str):
+        self.progress_bar.setValue(value)
+        self.progress_label.setText(message)
 
     def apply_filter(self):
         keyword = self.filter_input.text().lower()
-        min_kb = self.min_size_input.value()
-        max_kb = self.max_size_input.value()
 
         for row in range(self.result_table.rowCount()):
             path_item = self.result_table.item(row, 3)
@@ -318,14 +397,24 @@ class MainWindow(QMainWindow):
                 continue
 
             path = path_item.text().lower()
-            size_bytes = int(size_item.toolTip())
-            size_kb = size_bytes / 1024
 
             matches_keyword = keyword in path
-            matches_size = min_kb <= size_kb <= max_kb
 
             self.result_table.setRowHidden(
-                row, not (matches_keyword and matches_size))
+                row, not matches_keyword)
+
+    def run_deletion_process(self):
+        if self.interactive_radio.isChecked():
+            self.confirm_selected_deletion()
+        else:  # Covers "Delete all" and "Dry run"
+            if not self.dry_run_radio.isChecked():
+                confirm = QMessageBox.question(self, "Confirm Deletion",
+                                               f"Are you sure you want to delete all duplicate files, keeping one from each group?",
+                                               QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                if confirm != QMessageBox.StandardButton.Yes:
+                    self.logger.info("⏹️ Deletion cancelled by user.")
+                    return
+            self.perform_deletion()
 
     def perform_deletion(self):
         self.logger.info("\n🚮 Deletion Process Started")
@@ -345,7 +434,7 @@ class MainWindow(QMainWindow):
         else:
             self.logger.info("\n✅ Deletion complete.")
             # Consider re-scanning or removing deleted rows from table
-        self.start_scan()
+        # self.start_scan() # Removed to prevent re-scan loop
 
     def confirm_selected_deletion(self):
         selected_rows = self.result_table.selectionModel().selectedRows()
@@ -372,9 +461,12 @@ class MainWindow(QMainWindow):
             delete_files(paths_to_delete, dry_run=False, logger_obj=self.logger)
             self.logger.info(
                 f"\n✅ Deletion complete. {len(paths_to_delete)} files deleted.")
+            # To reflect the changes, we can remove the deleted rows from the table
+            # or the user can manually re-scan. For simplicity, we'll let them re-scan.
+            # A more advanced implementation could remove the specific rows.
 
         # Refresh the view
-        self.start_scan()
+        # self.start_scan() # Removed to prevent re-scan loop
 
     def export_to_json(self):
         if not self.duplicates:

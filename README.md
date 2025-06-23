@@ -47,6 +47,11 @@ Here are some common examples:
   python3 -m filedupfinder.cli ~/data --multi-region
   ```
 
+- **Scan with custom file size limits (5 MB to 500 MB):**
+  ```bash
+  python3 -m filedupfinder.cli ~/data --minsize 5 --maxsize 500
+  ```
+
 - **Export results:**
   ```bash
   python3 -m filedupfinder.cli ~/data --json-out duplicates.json --csv-out duplicates.csv
@@ -94,8 +99,8 @@ The GUI provides an intuitive way to:
 | `path`            | The base directory to start scanning from.                        | (Required) |
 | `--quick`         | Fast but less accurate (hash first 4KB)                           | `False` |
 | `--multi-region`  | Hash 3 parts (start/middle/end) for accuracy                      | `False` |
-| `--minsize`       | Minimum file size to consider (bytes)                             | `4096`  |
-| `--maxsize`       | Maximum file size to consider (bytes)                             | `4GB`   |
+| `--minsize`       | Minimum file size to consider (MB)                                | `4 MB`  |
+| `--maxsize`       | Maximum file size to consider (MB)                                | `4096 MB` (4 GB) |
 | `--threads`       | Number of hashing threads                                          | Auto    |
 | `--logfile`       | Path to save log output                                            | None    |
 | `--loglevel`      | Set logging verbosity (debug/info/warning/...)                    | `info`  |
