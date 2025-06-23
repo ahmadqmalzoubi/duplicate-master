@@ -2,7 +2,7 @@ import os
 import sys
 import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Union, Optional, Callable
 import logging
 from tqdm import tqdm
 
@@ -51,7 +51,13 @@ def blake2bsum(filename: str, buffer_size: Union[int, str], multi_region: bool) 
     return h.hexdigest()
 
 
-def batch_hash_files(paths: List[str], buffer_size: Union[int, str], multi_region: bool, threads: int) -> Dict[str, str]:
+def batch_hash_files(
+    paths: List[str],
+    buffer_size: Union[int, str],
+    multi_region: bool,
+    threads: int,
+    progress_callback: Optional[Callable[[int], None]] = None
+) -> Dict[str, str]:
     """
     Hashes a batch of files in parallel.
 
@@ -60,6 +66,7 @@ def batch_hash_files(paths: List[str], buffer_size: Union[int, str], multi_regio
         buffer_size: The buffer size to use for hashing.
         multi_region: Whether to use multi-region hashing.
         threads: The number of threads to use.
+        progress_callback: An optional callback to report progress percentage.
 
     Returns:
         A dictionary mapping file paths to their hashes.
@@ -68,11 +75,17 @@ def batch_hash_files(paths: List[str], buffer_size: Union[int, str], multi_regio
         futures = {executor.submit(
             blake2bsum, p, buffer_size, multi_region): p for p in paths}
         results = {}
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Hashing files", disable=(sys.stdout is None)):
-            path = futures[future]
-            try:
-                results[path] = future.result()
-            except (OSError, Exception) as e:
-                logger.error(f"Could not process {path}: {e}")
-                continue
+
+        with tqdm(total=len(futures), desc="Hashing files", disable=(sys.stdout is None or progress_callback is not None)) as pbar:
+            for future in as_completed(futures):
+                path = futures[future]
+                try:
+                    results[path] = future.result()
+                except (OSError, Exception) as e:
+                    logger.error(f"Could not process {path}: {e}")
+                finally:
+                    pbar.update(1)
+                    if progress_callback:
+                        percent = int((pbar.n / pbar.total) * 100)
+                        progress_callback(percent)
         return results

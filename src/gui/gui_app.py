@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton,
     QLabel, QFileDialog, QTableWidget, QTableWidgetItem, QHBoxLayout, QTextEdit,
     QCheckBox, QRadioButton, QButtonGroup, QGroupBox, QMessageBox,
-    QLineEdit, QSpinBox, QAbstractItemView
+    QLineEdit, QSpinBox, QAbstractItemView, QProgressBar
 )
 import sys
 import os
@@ -30,6 +30,7 @@ class SortableItem(QTableWidgetItem):
 class ScanWorker(QObject):
     finished = Signal(object)
     log = Signal(str)
+    progress = Signal(int, str)
 
     def __init__(self, folder):
         super().__init__()
@@ -72,8 +73,9 @@ class ScanWorker(QObject):
                     "Program Files", "Program Files (x86)", "Windows", "ProgramData"
                 ],
                 exclude_hidden=False,
-                threads=os.cpu_count(),
-                logger=logger_proxy
+                threads=os.cpu_count() or 1,
+                logger=logger_proxy,
+                progress_callback=self.progress.emit
             )
             log_msg(
                 f"✅ Scan complete. Found {len(duplicates)} duplicate groups.")
@@ -101,6 +103,11 @@ class MainWindow(QMainWindow):
         self.result_table.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
         self.result_table.setSortingEnabled(True)
         # self.result_table.setFont(QFont("Sans Serif", 10))
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        self.progress_label = QLabel("")
+        self.progress_label.setVisible(False)
 
         self.filter_input = QLineEdit()
         self.filter_input.setPlaceholderText("Filter by file path...")
@@ -185,6 +192,8 @@ class MainWindow(QMainWindow):
         layout.addLayout(button_layout)
         layout.addWidget(deletion_group)
         layout.addWidget(filter_group)
+        layout.addWidget(self.progress_bar)
+        layout.addWidget(self.progress_label)
         layout.addWidget(self.result_table)
         layout.addWidget(QLabel("Log Output:"))
         layout.addWidget(self.logger_output)
@@ -231,6 +240,10 @@ class MainWindow(QMainWindow):
         self.confirm_delete_button.setVisible(False)
         self.export_json_button.setVisible(False)
         self.export_csv_button.setVisible(False)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
+        self.progress_label.setVisible(True)
+        self.progress_label.setText("Starting scan...")
 
         if not self.selected_folder:
             return
@@ -240,14 +253,14 @@ class MainWindow(QMainWindow):
         self.worker.moveToThread(self.thread)
         self.worker.finished.connect(self.on_scan_finished)
         self.worker.log.connect(self.logger_output.append)
-
-        def start_worker_run():
-            if self.worker:
-                self.worker.run()
-
+        self.worker.progress.connect(self.update_progress)
         self.thread.started.connect(
-            lambda: QTimer.singleShot(100, start_worker_run))
+            lambda: QTimer.singleShot(100, self.start_worker_run))
         self.thread.start()
+
+    def start_worker_run(self):
+        if self.worker:
+            self.worker.run()
 
     def on_scan_finished(self, duplicates: Dict[Tuple[int, str], List[str]]):
         if self.thread:
@@ -262,6 +275,9 @@ class MainWindow(QMainWindow):
 
         self.worker = None
         self.thread = None
+
+        self.progress_bar.setVisible(False)
+        self.progress_label.setVisible(False)
 
         self.duplicates = duplicates
 
@@ -305,6 +321,10 @@ class MainWindow(QMainWindow):
 
         self.export_json_button.setVisible(True)
         self.export_csv_button.setVisible(True)
+
+    def update_progress(self, value: int, message: str):
+        self.progress_bar.setValue(value)
+        self.progress_label.setText(message)
 
     def apply_filter(self):
         keyword = self.filter_input.text().lower()
