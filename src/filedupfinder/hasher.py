@@ -75,9 +75,10 @@ def batch_hash_files(
         futures = {executor.submit(
             blake2bsum, p, buffer_size, multi_region): p for p in paths}
         results = {}
+        last_percent = -1
 
         with tqdm(total=len(futures), desc="Hashing files", disable=(sys.stdout is None or progress_callback is not None)) as pbar:
-            for future in as_completed(futures):
+            for i, future in enumerate(as_completed(futures)):
                 path = futures[future]
                 try:
                     results[path] = future.result()
@@ -86,6 +87,8 @@ def batch_hash_files(
                 finally:
                     pbar.update(1)
                     if progress_callback:
-                        percent = int((pbar.n / pbar.total) * 100)
-                        progress_callback(percent)
+                        percent = int(((i + 1) / len(futures)) * 100)
+                        if percent > last_percent:
+                            progress_callback(percent)
+                            last_percent = percent
         return results

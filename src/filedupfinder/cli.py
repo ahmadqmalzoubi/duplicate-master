@@ -7,8 +7,10 @@ def parse_args():
         description="Parallel duplicate file finder")
     parser.add_argument('basedir', nargs='?', default=".",
                         help='Directory to scan')
-    parser.add_argument('--minsize', type=int, default=4096)
-    parser.add_argument('--maxsize', type=int, default=4294967296)
+    parser.add_argument('--minsize', type=int, default=4,
+                        help='Minimum file size in MB (default: 4 MB)')
+    parser.add_argument('--maxsize', type=int, default=4096,
+                        help='Maximum file size in MB (default: 4096 MB = 4 GB)')
     parser.add_argument('--quick', action='store_true')
     parser.add_argument('--multi-region', action='store_true')
     parser.add_argument('--threads', type=int, default=DEFAULT_THREADS)
@@ -24,4 +26,11 @@ def parse_args():
     parser.add_argument('--exclude', action='append', default=[])
     parser.add_argument('--exclude-dir', action='append', default=[])
     parser.add_argument('--exclude-hidden', action='store_true')
-    return parser.parse_args()
+    
+    args = parser.parse_args()
+    
+    # Convert MB to bytes for backward compatibility
+    args.minsize = args.minsize * 1024 * 1024
+    args.maxsize = args.maxsize * 1024 * 1024
+    
+    return args
