@@ -1,8 +1,48 @@
 import argparse
+from typing import Any
 from .hasher import DEFAULT_THREADS
 
 
-def parse_args():
+def parse_args() -> Any:
+    """
+    Parse command-line arguments for the duplicate file finder application.
+
+    This function sets up the argument parser with all available options for the CLI,
+    including scan parameters, output formats, deletion options, and logging settings.
+    The function also handles unit conversion from MB to bytes for file size limits.
+
+    Returns:
+        argparse.Namespace: Parsed command-line arguments with the following attributes:
+            - basedir: Directory to scan (default: current directory)
+            - minsize: Minimum file size in MB (default: 4 MB)
+            - maxsize: Maximum file size in MB (default: 4096 MB = 4 GB)
+            - quick: Enable quick scan mode (default: False)
+            - multi_region: Enable multi-region scan mode (default: False)
+            - threads: Number of hashing threads (default: auto-detect)
+            - loglevel: Logging level (default: info)
+            - logfile: Path to log file (default: None)
+            - json_out: Path for JSON export (default: None)
+            - csv_out: Path for CSV export (default: None)
+            - delete: Enable deletion mode (default: False)
+            - dry_run: Enable dry-run mode (default: False)
+            - force: Skip confirmation prompts (default: False)
+            - interactive: Enable interactive deletion (default: False)
+            - exclude: List of file patterns to exclude
+            - exclude_dir: List of directory names to exclude
+            - exclude_hidden: Exclude hidden files (default: False)
+
+    Examples:
+        >>> args = parse_args()
+        >>> print(f"Scanning directory: {args.basedir}")
+        >>> print(f"File size range: {args.minsize} - {args.maxsize} MB")
+        Scanning directory: .
+        File size range: 4 - 4096 MB
+
+    Note:
+        - File size arguments (minsize, maxsize) are converted from MB to bytes internally
+        - The function handles both required and optional arguments
+        - Default values are optimized for typical usage scenarios
+    """
     parser = argparse.ArgumentParser(
         description="Parallel duplicate file finder")
     parser.add_argument('basedir', nargs='?', default=".",
