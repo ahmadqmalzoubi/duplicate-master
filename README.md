@@ -28,31 +28,62 @@ pip install -r requirements.txt
 
 ## 🚀 Usage
 
+### Command-Line Interface (CLI)
+
+To get started, you can run a scan on a directory using the following command:
 ```bash
-# Full scan with accurate deduplication
-python3 file-duplicate-finder.py ~/data
-
-# Fast mode (first 4KB only)
-python3 file-duplicate-finder.py ~/data --quick
-
-# High-accuracy mode (first/middle/last 4KB)
-python3 file-duplicate-finder.py ~/data --multi-region
-
-# Export results
-python3 file-duplicate-finder.py ~/data --json-out duplicates.json --csv-out duplicates.csv
-
-# Simulate deletion (dry-run)
-python3 file-duplicate-finder.py ~/data --delete --dry-run
-
-# Real deletion with confirmation
-python3 file-duplicate-finder.py ~/data --delete
-
-# Force deletion without confirmation
-python3 file-duplicate-finder.py ~/data --delete --force
-
-# Interactive deletion per group with file selection
-python3 file-duplicate-finder.py ~/data --delete --interactive
+python3 -m filedupfinder.cli ~/data
 ```
+
+Here are some common examples:
+
+- **Fast mode (first 4KB only):**
+  ```bash
+  python3 -m filedupfinder.cli ~/data --quick
+  ```
+
+- **High-accuracy mode (first/middle/last 4KB):**
+  ```bash
+  python3 -m filedupfinder.cli ~/data --multi-region
+  ```
+
+- **Export results:**
+  ```bash
+  python3 -m filedupfinder.cli ~/data --json-out duplicates.json --csv-out duplicates.csv
+  ```
+
+- **Simulate deletion (dry-run):**
+  ```bash
+  python3 -m filedupfinder.cli ~/data --delete --dry-run
+  ```
+
+- **Interactive deletion per group with file selection:**
+  ```bash
+  python3 -m filedupfinder.cli ~/data --delete --interactive
+  ```
+
+### Graphical User Interface (GUI)
+
+This tool also includes a graphical interface built with PySide6. To run it, you first need to install the GUI dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Then, you can launch the GUI with the following command:
+```bash
+python3 -m gui.gui_app
+```
+Alternatively, if you installed the package, you can use the entry point:
+```bash
+filedupfinder-gui
+```
+The GUI provides an intuitive way to:
+- Select a folder to scan.
+- View duplicate files in a sortable table.
+- Filter results by path and file size.
+- Delete selected files safely.
+- Export results to JSON or CSV.
 
 ---
 
@@ -60,6 +91,7 @@ python3 file-duplicate-finder.py ~/data --delete --interactive
 
 | Flag              | Description                                                       | Default |
 |-------------------|-------------------------------------------------------------------|---------|
+| `path`            | The base directory to start scanning from.                        | (Required) |
 | `--quick`         | Fast but less accurate (hash first 4KB)                           | `False` |
 | `--multi-region`  | Hash 3 parts (start/middle/end) for accuracy                      | `False` |
 | `--minsize`       | Minimum file size to consider (bytes)                             | `4096`  |

@@ -2,18 +2,18 @@ from filedupfinder.exporter import export_results
 from filedupfinder.logger import setup_logger
 from filedupfinder.analyzer import analyze_space_savings, format_bytes
 from filedupfinder.deduper import find_duplicates
+from filedupfinder.deletion import delete_files
 from PySide6.QtGui import QIcon, QFont, QColor, QBrush
 from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton,
     QLabel, QFileDialog, QTableWidget, QTableWidgetItem, QHBoxLayout, QTextEdit,
     QCheckBox, QRadioButton, QButtonGroup, QGroupBox, QMessageBox,
-    QLineEdit, QSpinBox
+    QLineEdit, QSpinBox, QAbstractItemView
 )
 import sys
 import os
-sys.path.insert(0, os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '..', 'src')))
+from typing import Dict, List, Tuple, Any, Optional
 
 
 class SortableItem(QTableWidgetItem):
@@ -97,8 +97,8 @@ class MainWindow(QMainWindow):
         self.result_table.setHorizontalHeaderLabels([
             "Group", "Size", "Hash", "Path"])
         self.result_table.horizontalHeader().setStretchLastSection(True)
-        self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.result_table.setSelectionMode(QTableWidget.MultiSelection)
+        self.result_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.result_table.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
         self.result_table.setSortingEnabled(True)
         # self.result_table.setFont(QFont("Sans Serif", 10))
 
@@ -200,9 +200,10 @@ class MainWindow(QMainWindow):
             self.logger.addHandler(self._log_handler())
         self.logger.propagate = False
 
-        self.selected_folder = None
-        self.duplicates = {}
-        self.thread = None
+        self.selected_folder: Optional[str] = None
+        self.duplicates: Dict[Tuple[int, str], List[str]] = {}
+        self.thread: Optional[QThread] = None
+        self.worker: Optional[ScanWorker] = None
 
     def _log_handler(self):
         from logging import Handler, Formatter
@@ -239,15 +240,28 @@ class MainWindow(QMainWindow):
         self.worker.moveToThread(self.thread)
         self.worker.finished.connect(self.on_scan_finished)
         self.worker.log.connect(self.logger_output.append)
+
+        def start_worker_run():
+            if self.worker:
+                self.worker.run()
+
         self.thread.started.connect(
-            lambda: QTimer.singleShot(100, self.worker.run))
+            lambda: QTimer.singleShot(100, start_worker_run))
         self.thread.start()
 
-    def on_scan_finished(self, duplicates):
-        self.thread.quit()
-        self.thread.wait()
-        self.worker.deleteLater()
-        self.thread.deleteLater()
+    def on_scan_finished(self, duplicates: Dict[Tuple[int, str], List[str]]):
+        if self.thread:
+            self.thread.quit()
+            self.thread.wait()
+        
+        if self.worker:
+            self.worker.deleteLater()
+        
+        if self.thread:
+            self.thread.deleteLater()
+
+        self.worker = None
+        self.thread = None
 
         self.duplicates = duplicates
 
@@ -298,8 +312,13 @@ class MainWindow(QMainWindow):
         max_kb = self.max_size_input.value()
 
         for row in range(self.result_table.rowCount()):
-            path = self.result_table.item(row, 3).text().lower()
-            size_bytes = int(self.result_table.item(row, 3).toolTip())
+            path_item = self.result_table.item(row, 3)
+            size_item = self.result_table.item(row, 3)
+            if not path_item or not size_item:
+                continue
+
+            path = path_item.text().lower()
+            size_bytes = int(size_item.toolTip())
             size_kb = size_bytes / 1024
 
             matches_keyword = keyword in path
@@ -312,25 +331,21 @@ class MainWindow(QMainWindow):
         self.logger.info("\n🚮 Deletion Process Started")
         dry_run = self.dry_run_radio.isChecked()
 
+        files_to_delete = []
         for (size, hash), paths in sorted(self.duplicates.items()):
             if len(paths) < 2:
                 continue
-            to_delete = paths[1:]
+            files_to_delete.extend(paths[1:])
 
-            for path in to_delete:
-                if dry_run:
-                    self.logger.info(f"[DRY-RUN] Would delete: {path}")
-                else:
-                    try:
-                        os.remove(path)
-                        self.logger.info(f"Deleted: {path}")
-                    except Exception as e:
-                        self.logger.error(f"❌ Failed to delete {path}: {e}")
+        if files_to_delete:
+            delete_files(files_to_delete, dry_run, self.logger)
 
         if dry_run:
             self.logger.info("\n✅ Dry-run complete. No files were deleted.")
         else:
             self.logger.info("\n✅ Deletion complete.")
+            # Consider re-scanning or removing deleted rows from table
+        self.start_scan()
 
     def confirm_selected_deletion(self):
         selected_rows = self.result_table.selectionModel().selectedRows()
@@ -340,26 +355,26 @@ class MainWindow(QMainWindow):
 
         confirm = QMessageBox.question(self, "Confirm Deletion",
                                        f"Are you sure you want to delete {len(selected_rows)} selected file(s)?",
-                                       QMessageBox.Yes | QMessageBox.No)
+                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
 
-        if confirm != QMessageBox.Yes:
+        if confirm != QMessageBox.StandardButton.Yes:
             self.logger.info("⏹️ Deletion cancelled by user.")
             return
 
-        deleted_count = 0
+        paths_to_delete = []
         for row in selected_rows:
             path_item = self.result_table.item(row.row(), 3)
             if path_item:
-                path = path_item.text()
-                try:
-                    os.remove(path)
-                    self.logger.info(f"🗑️ Deleted: {path}")
-                    deleted_count += 1
-                except Exception as e:
-                    self.logger.error(f"❌ Failed to delete {path}: {e}")
+                paths_to_delete.append(path_item.text())
 
-        self.logger.info(
-            f"\n✅ Deletion complete. {deleted_count} files deleted.")
+        if paths_to_delete:
+            # Assuming not a dry-run since it's an interactive deletion
+            delete_files(paths_to_delete, dry_run=False, logger_obj=self.logger)
+            self.logger.info(
+                f"\n✅ Deletion complete. {len(paths_to_delete)} files deleted.")
+
+        # Refresh the view
+        self.start_scan()
 
     def export_to_json(self):
         if not self.duplicates:
@@ -388,8 +403,12 @@ class MainWindow(QMainWindow):
                 self.logger.error(f"❌ Failed to export CSV: {e}")
 
 
-if __name__ == "__main__":
+def main():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
