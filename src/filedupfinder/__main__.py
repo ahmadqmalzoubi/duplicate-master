@@ -7,7 +7,40 @@ from .exporter import export_results
 import os
 
 
-def main():
+def main() -> None:
+    """
+    Main entry point for the duplicate file finder application.
+
+    This function orchestrates the entire duplicate file finding process:
+    1. Parses command-line arguments
+    2. Sets up logging
+    3. Validates the target directory
+    4. Performs the duplicate file scan
+    5. Analyzes and reports results
+    6. Handles deletion if requested
+    7. Exports results if specified
+
+    The function provides comprehensive feedback to the user including:
+    - Scan progress and status
+    - Summary statistics (groups, files, space usage)
+    - Error handling and logging
+    - Export functionality
+
+    Examples:
+        >>> main()
+        # Scans current directory and reports results
+
+    Command-line usage:
+        $ filedupfinder /path/to/scan
+        $ filedupfinder --delete --dry-run /path/to/scan
+        $ filedupfinder --minsize 5 --maxsize 500 /path/to/scan
+
+    Note:
+        - Exits with error code 1 if the target directory is invalid
+        - Provides detailed logging for debugging
+        - Supports both scan-only and deletion modes
+        - Handles export to JSON/CSV formats
+    """
     args = parse_args()
     logger = setup_logger(args)
 
@@ -38,6 +71,9 @@ def main():
     logger.info(
         f"   • {format_bytes(total_space)} of space used by duplicates")
     logger.info(f"   • {format_bytes(savings)} can be reclaimed")
+
+    if num_groups == 0:
+        logger.info("   • No duplicate files found in the scanned directory.")
 
     if args.delete:
         handle_deletion(duplicates, args, logger)

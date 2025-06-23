@@ -1,8 +1,38 @@
 import os
 import fnmatch
+from typing import List, Iterator, Any
 
 
-def get_files_recursively(base_dir, exclude, exclude_dir, exclude_hidden, logger):
+def get_files_recursively(
+    base_dir: str,
+    exclude: List[str],
+    exclude_dir: List[str],
+    exclude_hidden: bool,
+    logger: Any
+) -> Iterator[str]:
+    """
+    Recursively scan a directory and yield file paths that match the criteria.
+
+    This function walks through a directory tree and yields the paths of all files
+    that are not excluded by the specified filters. It handles symlinks, hidden files,
+    and provides detailed logging for debugging purposes.
+
+    Args:
+        base_dir: The root directory to start scanning from.
+        exclude: List of glob patterns to exclude files (e.g., ['*.tmp', '*.bak']).
+        exclude_dir: List of directory names to exclude from scanning.
+        exclude_hidden: If True, skip files and directories that start with '.'.
+        logger: Logger instance for recording scan progress and errors.
+
+    Yields:
+        str: Path to each file that passes all exclusion filters.
+
+    Examples:
+        >>> for file_path in get_files_recursively('/home/user', ['*.tmp'], ['.git'], True, logger):
+        ...     print(file_path)
+        /home/user/document.txt
+        /home/user/image.jpg
+    """
     try:
         if not os.path.isdir(base_dir):
             logger.warning(f"Skipping non-directory path: {base_dir}")

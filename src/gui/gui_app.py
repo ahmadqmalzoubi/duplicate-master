@@ -122,9 +122,12 @@ class MainWindow(QMainWindow):
 
         # --- Scan Options ---
         self.quick_scan_radio = QRadioButton("Quick Scan (fast, less accurate)")
+        self.quick_scan_radio.setToolTip("Hashes only the first 4KB of each file. Fast but may have false positives.")
         self.full_scan_radio = QRadioButton("Full Scan (accurate, default)")
+        self.full_scan_radio.setToolTip("Hashes the entire file content. Most accurate but slower for large files.")
         self.full_scan_radio.setChecked(True)
         self.multi_region_scan_radio = QRadioButton("Multi-region Scan (balanced)")
+        self.multi_region_scan_radio.setToolTip("Hashes three regions (start, middle, end) of each file. Good balance of speed and accuracy.")
 
         self.scan_mode_group = QButtonGroup()
         self.scan_mode_group.addButton(self.quick_scan_radio)
@@ -133,10 +136,13 @@ class MainWindow(QMainWindow):
 
         self.exclude_files_input = QLineEdit()
         self.exclude_files_input.setPlaceholderText("e.g., *.tmp, *.bak")
+        self.exclude_files_input.setToolTip("Comma-separated glob patterns to exclude files (e.g., *.tmp, *.bak, Thumbs.db)")
         self.exclude_dirs_input = QLineEdit()
         self.exclude_dirs_input.setPlaceholderText("e.g., .git, node_modules, $RECYCLE.BIN")
         self.exclude_dirs_input.setText(".git, node_modules, $RECYCLE.BIN, System Volume Information, Windows")
+        self.exclude_dirs_input.setToolTip("Comma-separated directory names to exclude from scanning")
         self.exclude_hidden_checkbox = QCheckBox("Exclude hidden files and folders")
+        self.exclude_hidden_checkbox.setToolTip("Skip files and folders that start with a dot (.)")
         self.exclude_hidden_checkbox.setChecked(True)
 
         scan_options_layout = QVBoxLayout()
@@ -164,23 +170,27 @@ class MainWindow(QMainWindow):
         # --- Deletion Options ---
         deletion_layout = QVBoxLayout()
         self.delete_checkbox = QCheckBox("Enable deletion")
+        self.delete_checkbox.setToolTip("Enable the deletion functionality. When unchecked, only scanning is performed.")
+        deletion_layout.addWidget(self.delete_checkbox)
         self.dry_run_radio = QRadioButton("Dry run only")
+        self.dry_run_radio.setToolTip("Simulate deletion without actually removing files. Shows what would be deleted.")
         self.dry_run_radio.setChecked(True)
-        self.delete_all_radio = QRadioButton(
-            "Delete all duplicates (keep one)")
+        self.delete_all_radio = QRadioButton("Delete all duplicates (keep one)")
+        self.delete_all_radio.setToolTip("Automatically delete all duplicate files, keeping one copy from each group.")
         self.interactive_radio = QRadioButton("Prompt before each group")
+        self.interactive_radio.setToolTip("Manually select which files to delete from each duplicate group.")
 
         self.delete_mode_group = QButtonGroup()
         self.delete_mode_group.addButton(self.dry_run_radio)
         self.delete_mode_group.addButton(self.delete_all_radio)
         self.delete_mode_group.addButton(self.interactive_radio)
 
-        self.deletion_group = QGroupBox("Deletion Options")
-        self.deletion_group.setLayout(deletion_layout)
-        deletion_layout.addWidget(self.delete_checkbox)
         deletion_layout.addWidget(self.dry_run_radio)
         deletion_layout.addWidget(self.delete_all_radio)
         deletion_layout.addWidget(self.interactive_radio)
+
+        self.deletion_group = QGroupBox("Deletion Options")
+        self.deletion_group.setLayout(deletion_layout)
 
         # --- Filter ---
         filter_layout = QHBoxLayout()
@@ -189,6 +199,7 @@ class MainWindow(QMainWindow):
         
         self.filter_group = QGroupBox("Results Filter")
         self.filter_group.setLayout(filter_layout)
+        self.filter_group.setToolTip("Filter the displayed results by file path. Does not affect the scan itself.")
 
         button_layout = QHBoxLayout()
         self.select_button = QPushButton(
@@ -360,6 +371,9 @@ class MainWindow(QMainWindow):
         self.logger.info(
             f"   • {format_bytes(total_space)} of space used by duplicates")
         self.logger.info(f"   • {format_bytes(savings)} can be reclaimed")
+
+        if not self.duplicates:
+            self.logger.info("   • No duplicate files found in the scanned directory.")
 
         self.delete_button.setVisible(
             bool(self.duplicates) and self.delete_checkbox.isChecked())
