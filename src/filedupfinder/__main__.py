@@ -5,6 +5,7 @@ from .analyzer import analyze_space_savings, format_bytes
 from .deletion import handle_deletion
 from .exporter import export_results
 from .demo import run_demo
+from .benchmark import run_benchmark
 import os
 
 
@@ -36,6 +37,7 @@ def main() -> None:
         $ filedupfinder --delete --dry-run /path/to/scan
         $ filedupfinder --minsize 5 --maxsize 500 /path/to/scan
         $ filedupfinder --demo
+        $ filedupfinder --benchmark
 
     Note:
         - Exits with error code 1 if the target directory is invalid
@@ -43,6 +45,8 @@ def main() -> None:
         - Supports both scan-only and deletion modes
         - Handles export to JSON/CSV formats
         - Supports demo mode for testing and demonstration
+        - Supports performance benchmarking
+        - Supports legacy scanning mode for comparison
     """
     args = parse_args()
     logger = setup_logger(args)
@@ -50,6 +54,11 @@ def main() -> None:
     # Check for demo mode
     if args.demo:
         run_demo()
+        return
+
+    # Check for benchmark mode
+    if args.benchmark:
+        run_benchmark()
         return
 
     if not os.path.exists(args.basedir) or not os.path.isdir(args.basedir):
@@ -66,7 +75,8 @@ def main() -> None:
         exclude_dir=args.exclude_dir,
         exclude_hidden=args.exclude_hidden,
         threads=args.threads,
-        logger=logger
+        logger=logger,
+        use_optimized_scanning=not args.legacy_scan
     )
 
     total_space, savings = analyze_space_savings(duplicates)
