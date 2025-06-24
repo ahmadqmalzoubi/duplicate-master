@@ -31,6 +31,8 @@ def parse_args() -> Any:
             - exclude_dir: List of directory names to exclude
             - exclude_hidden: Exclude hidden files (default: False)
             - demo: Run demo mode with test files (creates temporary files, scans, shows results, cleans up)
+            - benchmark: Run performance benchmark comparing optimized vs legacy scanning
+            - legacy_scan: Use legacy scanning method (disable optimizations)
 
     Examples:
         >>> args = parse_args()
@@ -69,6 +71,10 @@ def parse_args() -> Any:
     parser.add_argument('--exclude-hidden', action='store_true')
     parser.add_argument('--demo', action='store_true', 
                         help='Run demo mode with test files (creates temporary files, scans, shows results, cleans up)')
+    parser.add_argument('--benchmark', action='store_true',
+                        help='Run performance benchmark comparing optimized vs legacy scanning')
+    parser.add_argument('--legacy-scan', action='store_true',
+                        help='Use legacy scanning method (disable optimizations)')
     
     args = parser.parse_args()
     
