@@ -90,6 +90,60 @@ The GUI provides an intuitive way to:
 - Delete selected files safely.
 - Export results to JSON or CSV.
 
+### Command Line Interface
+
+```bash
+# Basic scan
+filedupfinder /path/to/scan
+
+# Scan with size limits (in MB)
+filedupfinder --minsize 5 --maxsize 500 /path/to/scan
+
+# Quick scan (faster, less accurate)
+filedupfinder --quick /path/to/scan
+
+# Exclude certain file types and directories
+filedupfinder --exclude "*.tmp,*.bak" --exclude-dir ".git,node_modules" /path/to/scan
+
+# Dry run deletion (see what would be deleted)
+filedupfinder --delete --dry-run /path/to/scan
+
+# Actually delete duplicates (keep one copy)
+filedupfinder --delete /path/to/scan
+
+# Export results to JSON
+filedupfinder --json-out results.json /path/to/scan
+
+# Export results to CSV
+filedupfinder --csv-out results.csv /path/to/scan
+
+# Run demo mode (creates test files, scans, shows results, cleans up)
+filedupfinder --demo
+```
+
+### Graphical User Interface
+
+1. **Launch the GUI:**
+   ```bash
+   python -m gui.gui_app
+   ```
+
+2. **Using the GUI:**
+   - Click "Select Folder" to choose a directory to scan
+   - Configure scan options (file size limits, exclusions, scan mode)
+   - Click "Start Scan" to begin the duplicate detection
+   - Use the "🎬 Run Demo" button to see a demonstration with test files
+   - Review results in the table and log output
+   - Export results to JSON or CSV if needed
+   - Enable deletion options to remove duplicates
+
+3. **Demo Mode:**
+   - Click the "🎬 Run Demo" button to run a demonstration
+   - The demo creates temporary test files with known duplicates
+   - Scans the test files and shows results
+   - Automatically cleans up when finished
+   - Perfect for testing the tool's functionality
+
 ---
 
 ## 🛠️ Command-Line Options

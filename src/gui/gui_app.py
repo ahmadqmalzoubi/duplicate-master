@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 )
 import sys
 import os
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any, Optional, Union
 
 
 class SortableItem(QTableWidgetItem):
@@ -79,6 +79,103 @@ class ScanWorker(QObject):
             self.finished.emit(duplicates)
         except Exception as e:
             log_msg(f"❌ Error during scan: {str(e)}")
+            self.finished.emit({})
+
+
+class DemoWorker(QObject):
+    finished = Signal(object)
+    log = Signal(str)
+    progress = Signal(int, str)
+
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        from filedupfinder.demo import run_demo
+        from filedupfinder.deduper import find_duplicates
+        from filedupfinder.analyzer import analyze_space_savings, format_bytes
+        import tempfile
+        from pathlib import Path
+
+        class SignallingLogger:
+            def __init__(self, log_signal):
+                self.log_signal = log_signal
+
+            def info(self, msg):
+                self.log_signal.emit(msg)
+
+            def debug(self, msg):
+                pass
+
+            def warning(self, msg):
+                self.log_signal.emit(f"WARNING: {msg}")
+
+            def error(self, msg):
+                self.log_signal.emit(f"ERROR: {msg}")
+
+        logger_proxy = SignallingLogger(self.log)
+
+        try:
+            logger_proxy.info("🎬 Starting File Duplicate Finder Demo")
+            logger_proxy.info("=" * 50)
+
+            # Create temporary directory for demo
+            with tempfile.TemporaryDirectory() as temp_dir:
+                base_dir = Path(temp_dir) / "demo_files"
+                base_dir.mkdir()
+
+                # Create demo files
+                logger_proxy.info("📁 Creating demo files with duplicates...")
+                from filedupfinder.demo import create_demo_files
+                file_mapping = create_demo_files(base_dir)
+
+                # Run scan
+                logger_proxy.info("🔍 Starting demo scan...")
+                duplicates = find_duplicates(
+                    base_dir=str(base_dir),
+                    min_size=0,
+                    max_size=1024 * 1024 * 1024,  # 1GB max
+                    quick_mode=True,
+                    multi_region=False,
+                    exclude=[],
+                    exclude_dir=[],
+                    exclude_hidden=False,
+                    threads=4,
+                    logger=logger_proxy,
+                    progress_callback=self.progress.emit
+                )
+
+                # Show results
+                total_space, savings = analyze_space_savings(duplicates)
+                num_groups = len(duplicates)
+                num_files = sum(len(paths) for paths in duplicates.values())
+
+                logger_proxy.info("\n" + "="*60)
+                logger_proxy.info("🎯 DEMO RESULTS")
+                logger_proxy.info("="*60)
+                logger_proxy.info(f"📊 Found {num_groups} duplicate groups")
+                logger_proxy.info(f"📁 Total duplicate files: {num_files}")
+                logger_proxy.info(f"💾 Space used by duplicates: {format_bytes(total_space)}")
+                logger_proxy.info(f"🗑️  Space that can be reclaimed: {format_bytes(savings)}")
+                logger_proxy.info("="*60)
+
+                if num_groups > 0:
+                    logger_proxy.info("\n📋 Duplicate Groups Found:")
+                    logger_proxy.info("-" * 40)
+
+                    for i, ((size, hash_val), paths) in enumerate(duplicates.items(), 1):
+                        logger_proxy.info(f"\n🔍 Group {i} (Size: {format_bytes(size)}, Hash: {hash_val[:8]}...)")
+                        for j, path in enumerate(paths):
+                            rel_path = os.path.relpath(path)
+                            logger_proxy.info(f"  [{j}] {rel_path}")
+
+                logger_proxy.info("\n✅ Demo completed successfully!")
+                logger_proxy.info("💡 This demonstrates how the tool identifies and groups duplicate files.")
+
+                self.finished.emit(duplicates)
+
+        except Exception as e:
+            logger_proxy.error(f"❌ Demo failed: {str(e)}")
             self.finished.emit({})
 
 
@@ -206,6 +303,11 @@ class MainWindow(QMainWindow):
             QIcon.fromTheme("folder"), "Select Folder")
         self.select_button.clicked.connect(self.select_folder)
 
+        self.demo_button = QPushButton(
+            QIcon.fromTheme("media-playback-start"), "🎬 Run Demo")
+        self.demo_button.setToolTip("Run a demo with test files to see how the tool works")
+        self.demo_button.clicked.connect(self.run_demo)
+
         self.scan_button = QPushButton(
             QIcon.fromTheme("system-search"), "Start Scan")
         self.scan_button.clicked.connect(self.start_scan)
@@ -227,6 +329,7 @@ class MainWindow(QMainWindow):
         self.export_csv_button.setVisible(False)
 
         button_layout.addWidget(self.select_button)
+        button_layout.addWidget(self.demo_button)
         button_layout.addWidget(self.scan_button)
         button_layout.addWidget(self.delete_button)
         button_layout.addWidget(self.export_json_button)
@@ -258,7 +361,7 @@ class MainWindow(QMainWindow):
         self.selected_folder: Optional[str] = None
         self.duplicates: Dict[Tuple[int, str], List[str]] = {}
         self.thread: Optional[QThread] = None
-        self.worker: Optional[ScanWorker] = None
+        self.worker: Optional[Union[ScanWorker, DemoWorker]] = None
 
     def _log_handler(self):
         from logging import Handler, Formatter
@@ -496,17 +599,93 @@ class MainWindow(QMainWindow):
                 self.logger.error(f"❌ Failed to export JSON: {e}")
 
     def export_to_csv(self):
-        if not self.duplicates:
-            self.logger.info("⚠️ No results to export.")
-            return
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Export to CSV", "duplicates.csv", "CSV Files (*.csv)")
-        if path:
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Export to CSV", "", "CSV Files (*.csv)")
+        if file_path:
             try:
-                export_results(self.duplicates, type(
-                    'Args', (), {"json_out": None, "csv_out": path}), self.logger)
+                export_results(self.duplicates, type('Args', (), {
+                    'csv_out': file_path
+                })(), self.logger)
+                self.logger.info(f"✅ Exported to CSV: {file_path}")
             except Exception as e:
-                self.logger.error(f"❌ Failed to export CSV: {e}")
+                self.logger.error(f"❌ Export failed: {e}")
+
+    def run_demo(self):
+        """Run the demo functionality in a separate thread."""
+        self.logger_output.clear()
+        self.result_table.setRowCount(0)
+        self.delete_button.setVisible(False)
+        self.export_json_button.setVisible(False)
+        self.export_csv_button.setVisible(False)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
+        self.progress_label.setVisible(True)
+        self.progress_label.setText("Running demo...")
+        self.set_controls_enabled(False)
+
+        # Create a demo worker thread
+        self.thread = QThread()
+        self.worker = DemoWorker()
+        self.worker.moveToThread(self.thread)
+        self.worker.finished.connect(self.on_demo_finished)
+        self.worker.log.connect(self.logger_output.append)
+        self.worker.progress.connect(self.update_progress)
+        self.thread.started.connect(
+            lambda: QTimer.singleShot(100, self.start_worker_run))
+        self.thread.start()
+
+    def on_demo_finished(self, duplicates: Dict[Tuple[int, str], List[str]]):
+        """Handle demo completion."""
+        if self.thread:
+            self.thread.quit()
+            self.thread.wait()
+        
+        if self.worker:
+            self.worker.deleteLater()
+        
+        if self.thread:
+            self.thread.deleteLater()
+
+        self.worker = None
+        self.thread = None
+
+        self.progress_bar.setVisible(False)
+        self.progress_label.setVisible(False)
+        
+        # Enable controls but properly handle scan button state
+        self.select_button.setEnabled(True)
+        self.scan_button.setEnabled(bool(self.selected_folder))  # Only enable if folder selected
+        self.filter_group.setEnabled(True)
+        self.deletion_group.setEnabled(True)
+        self.scan_options_group.setEnabled(True)
+
+        # Show demo results in table
+        self.duplicates = duplicates
+        total_space, savings = analyze_space_savings(self.duplicates)
+
+        self.result_table.setSortingEnabled(False)
+        group_id = 1
+        for (size, hash), paths in sorted(self.duplicates.items()):
+            for path in paths:
+                row = self.result_table.rowCount()
+                self.result_table.insertRow(row)
+                self.result_table.setItem(
+                    row, 0, SortableItem(str(group_id), group_id))
+                self.result_table.setItem(
+                    row, 1, SortableItem(format_bytes(size), size))
+                item = QTableWidgetItem(f"{hash[:8]}...{hash[-8:]}")
+                item.setToolTip(hash)
+                self.result_table.setItem(row, 2, item)
+                path_item = QTableWidgetItem(path)
+                path_item.setToolTip(str(size))
+                self.result_table.setItem(row, 3, path_item)
+            group_id += 1
+
+        self.result_table.setSortingEnabled(True)
+
+        # Show export buttons for demo results
+        self.export_json_button.setVisible(bool(self.duplicates))
+        self.export_csv_button.setVisible(bool(self.duplicates))
 
 
 def main():

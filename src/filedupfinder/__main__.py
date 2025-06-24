@@ -4,6 +4,7 @@ from .deduper import find_duplicates
 from .analyzer import analyze_space_savings, format_bytes
 from .deletion import handle_deletion
 from .exporter import export_results
+from .demo import run_demo
 import os
 
 
@@ -34,15 +35,22 @@ def main() -> None:
         $ filedupfinder /path/to/scan
         $ filedupfinder --delete --dry-run /path/to/scan
         $ filedupfinder --minsize 5 --maxsize 500 /path/to/scan
+        $ filedupfinder --demo
 
     Note:
         - Exits with error code 1 if the target directory is invalid
         - Provides detailed logging for debugging
         - Supports both scan-only and deletion modes
         - Handles export to JSON/CSV formats
+        - Supports demo mode for testing and demonstration
     """
     args = parse_args()
     logger = setup_logger(args)
+
+    # Check for demo mode
+    if args.demo:
+        run_demo()
+        return
 
     if not os.path.exists(args.basedir) or not os.path.isdir(args.basedir):
         logger.error(f"Invalid directory: {args.basedir}")
