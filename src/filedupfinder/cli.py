@@ -30,6 +30,7 @@ def parse_args() -> Any:
             - exclude: List of file patterns to exclude
             - exclude_dir: List of directory names to exclude
             - exclude_hidden: Exclude hidden files (default: False)
+            - demo: Run demo mode with test files (creates temporary files, scans, shows results, cleans up)
 
     Examples:
         >>> args = parse_args()
@@ -66,6 +67,8 @@ def parse_args() -> Any:
     parser.add_argument('--exclude', action='append', default=[])
     parser.add_argument('--exclude-dir', action='append', default=[])
     parser.add_argument('--exclude-hidden', action='store_true')
+    parser.add_argument('--demo', action='store_true', 
+                        help='Run demo mode with test files (creates temporary files, scans, shows results, cleans up)')
     
     args = parser.parse_args()
     
