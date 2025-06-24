@@ -1,10 +1,10 @@
 [project]
 name = "filedupfinder"
-version = "0.4.0"
+version = "0.7.0"
 description = "A high-performance, parallel Python tool to detect and manage duplicate files."
 readme = "README.md"
 authors = [
-    { name = "Ahmad Alzoubi" }
+    { name = "Ahmad QM Alzoubi" }
 ]
 license = { file = "LICENSE" }
 dependencies = [
