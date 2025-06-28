@@ -1,5 +1,5 @@
 [project]
-name = "filedupfinder"
+name = "duplicatemaster"
 version = "0.7.0"
 description = "A high-performance, parallel Python tool to detect and manage duplicate files."
 readme = "README.md"
@@ -39,14 +39,14 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/file-duplicate-finder"
-Documentation = "https://github.com/yourusername/file-duplicate-finder#readme"
-Repository = "https://github.com/yourusername/file-duplicate-finder.git"
-"Bug Tracker" = "https://github.com/yourusername/file-duplicate-finder/issues"
+Homepage = "https://github.com/yourusername/duplicate-master"
+Documentation = "https://github.com/yourusername/duplicate-master#readme"
+Repository = "https://github.com/yourusername/duplicate-master.git"
+"Bug Tracker" = "https://github.com/yourusername/duplicate-master/issues"
 
 [project.scripts]
-filedupfinder = "filedupfinder.__main__:main"
-filedupfinder-gui = "gui.gui_app:main"
+duplicatemaster = "duplicatemaster.__main__:main"
+duplicatemaster-gui = "gui.gui_app:main"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
@@ -54,15 +54,15 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-packages = ["filedupfinder", "gui"]
+packages = ["duplicatemaster", "gui"]
 
 [tool.setuptools.package-data]
-filedupfinder = ["*.txt", "*.md"]
+duplicatemaster = ["*.txt", "*.md"]
 gui = ["*.txt", "*.md"]
 
 # PyInstaller configuration
 [tool.pyinstaller]
-name = "FileDuplicateFinder"
+name = "DuplicateMaster"
 onefile = true
 windowed = true
 icon = "assets/fdf-icon.ico"
@@ -71,25 +71,25 @@ hidden-import = ["PySide6.QtCore", "PySide6.QtWidgets", "PySide6.QtGui"]
 
 # For Linux
 [tool.pyinstaller.linux]
-name = "filedupfinder"
+name = "duplicatemaster"
 onefile = true
 console = true
 icon = "assets/fdf-icon.ico"
 
 # For macOS
 [tool.pyinstaller.macos]
-name = "FileDuplicateFinder"
+name = "DuplicateMaster"
 onefile = true
 console = true
 icon = "assets/fdf-icon.ico"
 
 # cx_Freeze configuration
 [tool.cx_freeze]
-name = "FileDuplicateFinder"
+name = "DuplicateMaster"
 version = "0.7.0"
 description = "A high-performance, parallel Python tool to detect and manage duplicate files."
 author = "Ahmad QM Alzoubi"
 executables = [
-    { script = "src/filedupfinder/__main__.py", base = "Console", target_name = "filedupfinder" },
-    { script = "src/gui/gui_app.py", base = "Win32GUI", target_name = "filedupfinder-gui" }
+    { script = "src/duplicatemaster/__main__.py", base = "Console", target_name = "duplicatemaster" },
+    { script = "src/gui/gui_app.py", base = "Win32GUI", target_name = "duplicatemaster-gui" }
 ]

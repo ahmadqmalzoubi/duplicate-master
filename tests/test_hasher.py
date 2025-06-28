@@ -1,6 +1,7 @@
 import os
 import pytest
-from filedupfinder.hasher import blake2bsum, batch_hash_files, DEFAULT_THREADS
+import hashlib
+from duplicatemaster.hasher import blake2bsum, batch_hash_files, DEFAULT_THREADS
 
 
 def test_blake2bsum_basic(tmp_path):

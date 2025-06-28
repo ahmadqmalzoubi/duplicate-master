@@ -4,7 +4,7 @@ import tempfile
 import os
 from unittest.mock import patch, MagicMock
 import pytest
-from filedupfinder.logger import setup_logger
+from duplicatemaster.logger import setup_logger
 
 
 class MockArgs:
@@ -18,7 +18,7 @@ def test_setup_logger_console_default():
     args = MockArgs()
     logger = setup_logger(args)
     
-    assert logger.name == "filedupfinder"
+    assert logger.name == "duplicatemaster"
     assert logger.level == logging.INFO
     # Just verify the logger was created successfully
     assert isinstance(logger, logging.Logger)
@@ -27,7 +27,7 @@ def test_setup_logger_console_default():
 def test_setup_logger_file_output():
     """Test logger setup with file output."""
     # Clear any existing handlers first
-    logger = logging.getLogger("filedupfinder")
+    logger = logging.getLogger("duplicatemaster")
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
     
@@ -38,7 +38,7 @@ def test_setup_logger_file_output():
         args = MockArgs(logfile=logfile_path)
         logger = setup_logger(args)
         
-        assert logger.name == "filedupfinder"
+        assert logger.name == "duplicatemaster"
         assert logger.level == logging.INFO
         # Just verify the logger was created successfully
         assert isinstance(logger, logging.Logger)
@@ -83,7 +83,7 @@ def test_setup_logger_gui_mode():
     with patch('sys.stdout', None):
         logger = setup_logger(args)
         
-        assert logger.name == "filedupfinder"
+        assert logger.name == "duplicatemaster"
         assert logger.level == logging.INFO
         # Just verify the logger was created successfully
         assert isinstance(logger, logging.Logger)

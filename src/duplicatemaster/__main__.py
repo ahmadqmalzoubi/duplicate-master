@@ -11,7 +11,7 @@ import os
 
 def main() -> None:
     """
-    Main entry point for the duplicate file finder application.
+    Main entry point for the DuplicateMaster application.
 
     This function orchestrates the entire duplicate file finding process:
     1. Parses command-line arguments
@@ -33,11 +33,11 @@ def main() -> None:
         # Scans current directory and reports results
 
     Command-line usage:
-        $ filedupfinder /path/to/scan
-        $ filedupfinder --delete --dry-run /path/to/scan
-        $ filedupfinder --minsize 5 --maxsize 500 /path/to/scan
-        $ filedupfinder --demo
-        $ filedupfinder --benchmark
+        $ duplicatemaster /path/to/scan
+        $ duplicatemaster --delete --dry-run /path/to/scan
+        $ duplicatemaster --minsize 5 --maxsize 500 /path/to/scan
+        $ duplicatemaster --demo
+        $ duplicatemaster --benchmark
 
     Note:
         - Exits with error code 1 if the target directory is invalid

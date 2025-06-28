@@ -1,7 +1,8 @@
 import sys
 from unittest.mock import patch
 import pytest
-from filedupfinder.cli import parse_args
+import argparse
+from duplicatemaster.cli import parse_args
 
 
 def test_cli_defaults():

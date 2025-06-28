@@ -37,7 +37,7 @@ def setup_logger(args: Any) -> logging.Logger:
         - Log format: [LEVEL]    message
         - Prevents duplicate handlers if called multiple times
     """
-    logger = logging.getLogger("filedupfinder")
+    logger = logging.getLogger("duplicatemaster")
     logger.setLevel(logging.getLevelName(args.loglevel.upper()))
 
     # Avoid duplicate handlers

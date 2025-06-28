@@ -1,4 +1,4 @@
-# Duplicate File Finder 🔍
+# DuplicateMaster 🔍
 
 A high-performance, parallel Python tool to detect and manage duplicate files — with flexible hashing, logging, reporting, and safe deletion options.
 
@@ -24,38 +24,38 @@ A high-performance, parallel Python tool to detect and manage duplicate files �
 
 ```bash
 # Install CLI only
-pip install filedupfinder
+pip install duplicatemaster
 
 # Install with GUI support
-pip install filedupfinder[gui]
+pip install duplicatemaster[gui]
 
 # Install development dependencies
-pip install filedupfinder[dev]
+pip install duplicatemaster[dev]
 ```
 
 ### Option 2: Standalone Executables
 
-Download pre-built executables from the [Releases page](https://github.com/yourusername/file-duplicate-finder/releases):
+Download pre-built executables from the [Releases page](https://github.com/yourusername/duplicate-master/releases):
 
-- **Windows**: `filedupfinder.exe` and `filedupfinder-gui.exe`
-- **Linux**: `filedupfinder` and `filedupfinder-gui`
-- **macOS**: `filedupfinder` and `filedupfinder-gui`
+- **Windows**: `duplicatemaster.exe` and `duplicatemaster-gui.exe`
+- **Linux**: `duplicatemaster` and `duplicatemaster-gui`
+- **macOS**: `duplicatemaster` and `duplicatemaster-gui`
 
 ### Option 3: Docker
 
 ```bash
 # Pull the image
-docker pull yourusername/filedupfinder:latest
+docker pull yourusername/duplicatemaster:latest
 
 # Run with volume mounting
-docker run -v $(pwd):/app/data yourusername/filedupfinder:latest /app/data
+docker run -v $(pwd):/app/data yourusername/duplicatemaster:latest /app/data
 ```
 
 ### Option 4: From Source
 
 ```bash
-git clone https://github.com/yourusername/file-duplicate-finder.git
-cd file-duplicate-finder
+git clone https://github.com/yourusername/duplicate-master.git
+cd duplicate-master
 pip install -e .
 ```
 
@@ -80,52 +80,52 @@ scripts\install-windows.bat
 
 ### **Basic Usage**
 ```bash
-filedupfinder ~/data
+duplicatemaster ~/data
 ```
 
 ### **Quick Scan (Fast but less accurate)**
 ```bash
-filedupfinder ~/data --quick
+duplicatemaster ~/data --quick
 ```
 
 ### **Multi-Region Scan (More accurate)**
 ```bash
-filedupfinder ~/data --multi-region
+duplicatemaster ~/data --multi-region
 ```
 
 ### **Size Filtering**
 ```bash
-filedupfinder ~/data --minsize 5 --maxsize 500
+duplicatemaster ~/data --minsize 5 --maxsize 500
 ```
 
 ### **Export Results**
 ```bash
-filedupfinder ~/data --json-out duplicates.json --csv-out duplicates.csv
+duplicatemaster ~/data --json-out duplicates.json --csv-out duplicates.csv
 ```
 
 ### **Safe Deletion (Dry Run)**
 ```bash
-filedupfinder ~/data --delete --dry-run
+duplicatemaster ~/data --delete --dry-run
 ```
 
 ### **Interactive Deletion**
 ```bash
-filedupfinder ~/data --delete --interactive
+duplicatemaster ~/data --delete --interactive
 ```
 
 ### **Performance Benchmark**
 ```bash
-filedupfinder --benchmark
+duplicatemaster --benchmark
 ```
 
 ### **Legacy Scanning Mode**
 ```bash
-filedupfinder ~/data --legacy-scan
+duplicatemaster ~/data --legacy-scan
 ```
 
 ### **Demo Mode**
 ```bash
-filedupfinder --demo
+duplicatemaster --demo
 ```
 
 ### **Graphical User Interface (GUI)**
@@ -133,58 +133,58 @@ filedupfinder --demo
 For a user-friendly graphical interface:
 
 ```bash
-filedupfinder-gui
+duplicatemaster-gui
 ```
 
 ### **Docker Usage**
 
 ```bash
 # Basic scan
-docker run -v $(pwd):/app/data yourusername/filedupfinder:latest /app/data
+docker run -v $(pwd):/app/data yourusername/duplicatemaster:latest /app/data
 
 # With custom arguments
-docker run -v $(pwd):/app/data yourusername/filedupfinder:latest /app/data --threads 4 --quick
+docker run -v $(pwd):/app/data yourusername/duplicatemaster:latest /app/data --threads 4 --quick
 
 # Interactive mode
-docker run -it -v $(pwd):/app/data yourusername/filedupfinder:latest /app/data --interactive
+docker run -it -v $(pwd):/app/data yourusername/duplicatemaster:latest /app/data --interactive
 ```
 
 ### Command Line Interface
 
 ```bash
 # Basic scan
-filedupfinder /path/to/scan
+duplicatemaster /path/to/scan
 
 # Scan with size limits (in MB)
-filedupfinder --minsize 5 --maxsize 500 /path/to/scan
+duplicatemaster --minsize 5 --maxsize 500 /path/to/scan
 
 # Quick scan (faster, less accurate)
-filedupfinder --quick /path/to/scan
+duplicatemaster --quick /path/to/scan
 
 # Exclude certain file types and directories
-filedupfinder --exclude "*.tmp,*.bak" --exclude-dir ".git,node_modules" /path/to/scan
+duplicatemaster --exclude "*.tmp,*.bak" --exclude-dir ".git,node_modules" /path/to/scan
 
 # Dry run deletion (see what would be deleted)
-filedupfinder --delete --dry-run /path/to/scan
+duplicatemaster --delete --dry-run /path/to/scan
 
 # Actually delete duplicates (keep one copy)
-filedupfinder --delete /path/to/scan
+duplicatemaster --delete /path/to/scan
 
 # Export results to JSON
-filedupfinder --json-out results.json /path/to/scan
+duplicatemaster --json-out results.json /path/to/scan
 
 # Export results to CSV
-filedupfinder --csv-out results.csv /path/to/scan
+duplicatemaster --csv-out results.csv /path/to/scan
 
 # Run demo mode (creates test files, scans, shows results, cleans up)
-filedupfinder --demo
+duplicatemaster --demo
 ```
 
 ### Graphical User Interface
 
 1. **Launch the GUI:**
    ```bash
-   filedupfinder-gui
+   duplicatemaster-gui
    ```
 
 2. **Using the GUI:**
@@ -275,7 +275,7 @@ This tool includes several performance optimizations that significantly improve 
 ### **📈 Performance Benchmarking**
 Run the built-in benchmark to compare performance on your system:
 ```bash
-python -m filedupfinder --benchmark
+python -m duplicatemaster --benchmark
 ```
 
 The benchmark compares:
@@ -287,7 +287,7 @@ The benchmark compares:
 ### **🔄 Legacy Mode**
 If you need to use the original scanning method for compatibility:
 ```bash
-python -m filedupfinder ~/data --legacy-scan
+python -m duplicatemaster ~/data --legacy-scan
 ```
 
 ### **📊 Expected Performance Improvements**
@@ -428,7 +428,7 @@ python -m pytest tests/ -v
 python -m pytest tests/test_analyzer.py -v
 
 # Run tests with coverage (if pytest-cov is installed)
-python -m pytest tests/ --cov=filedupfinder
+python -m pytest tests/ --cov=duplicatemaster
 ```
 
 ### Test Coverage

@@ -225,4 +225,4 @@ def run_demo() -> None:
             pass
     
     logger.info("\n🎉 Demo completed! Try running the tool on your own files:")
-    logger.info("   python -m filedupfinder.cli /path/to/your/directory") 
+    logger.info("   python -m duplicatemaster /path/to/your/directory") 

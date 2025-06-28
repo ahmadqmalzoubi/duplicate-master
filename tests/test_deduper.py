@@ -1,8 +1,8 @@
-import os
 import pytest
+import os
 from unittest.mock import patch, MagicMock, call
 from collections import defaultdict
-from filedupfinder.deduper import find_duplicates
+from duplicatemaster.deduper import find_duplicates
 
 
 class MockLogger:
@@ -30,8 +30,8 @@ class MockProgressCallback:
         self.calls.append((percentage, message))
 
 
-@patch('filedupfinder.deduper.get_files_with_size_filter')
-@patch('filedupfinder.deduper.hash_files_with_size_info')
+@patch('duplicatemaster.deduper.get_files_with_size_filter')
+@patch('duplicatemaster.deduper.hash_files_with_size_info')
 def test_find_duplicates_quick_mode(mock_hash_files, mock_get_files):
     """Test duplicate detection in quick mode."""
     # Mock file discovery with size information
@@ -68,9 +68,9 @@ def test_find_duplicates_quick_mode(mock_hash_files, mock_get_files):
     assert result == expected
 
 
-@patch('filedupfinder.deduper.get_files_with_size_filter')
-@patch('filedupfinder.deduper.hash_files_with_size_info')
-@patch('filedupfinder.deduper.batch_hash_files')
+@patch('duplicatemaster.deduper.get_files_with_size_filter')
+@patch('duplicatemaster.deduper.hash_files_with_size_info')
+@patch('duplicatemaster.deduper.batch_hash_files')
 def test_find_duplicates_full_mode(mock_batch_hash, mock_hash_files, mock_get_files):
     """Test duplicate detection in full mode."""
     # Mock file discovery with size information
@@ -116,8 +116,8 @@ def test_find_duplicates_full_mode(mock_batch_hash, mock_hash_files, mock_get_fi
     assert mock_batch_hash.call_count == 1
 
 
-@patch('filedupfinder.deduper.get_files_with_size_filter')
-@patch('filedupfinder.deduper.hash_files_with_size_info')
+@patch('duplicatemaster.deduper.get_files_with_size_filter')
+@patch('duplicatemaster.deduper.hash_files_with_size_info')
 def test_find_duplicates_with_progress_callback(mock_hash_files, mock_get_files):
     """Test duplicate detection with progress callback."""
     # Mock file discovery with size information
@@ -159,8 +159,8 @@ def test_find_duplicates_with_progress_callback(mock_hash_files, mock_get_files)
     assert "Found 2 files to process..." in progress_messages
 
 
-@patch('filedupfinder.deduper.get_files_with_size_filter')
-@patch('filedupfinder.deduper.hash_files_with_size_info')
+@patch('duplicatemaster.deduper.get_files_with_size_filter')
+@patch('duplicatemaster.deduper.hash_files_with_size_info')
 def test_find_duplicates_file_size_filtering(mock_hash_files, mock_get_files):
     """Test file size filtering."""
     # Mock file discovery with size information (only medium file in range)
@@ -195,8 +195,8 @@ def test_find_duplicates_file_size_filtering(mock_hash_files, mock_get_files):
     mock_hash_files.assert_called_once()
 
 
-@patch('filedupfinder.deduper.get_files_with_size_filter')
-@patch('filedupfinder.deduper.hash_files_with_size_info')
+@patch('duplicatemaster.deduper.get_files_with_size_filter')
+@patch('duplicatemaster.deduper.hash_files_with_size_info')
 def test_find_duplicates_os_error_handling(mock_hash_files, mock_get_files):
     """Test handling of OSError when getting file size."""
     # Mock file discovery with size information (only valid files)
@@ -233,8 +233,8 @@ def test_find_duplicates_os_error_handling(mock_hash_files, mock_get_files):
     mock_hash_files.assert_called_once()
 
 
-@patch('filedupfinder.deduper.get_files_with_size_filter')
-@patch('filedupfinder.deduper.hash_files_with_size_info')
+@patch('duplicatemaster.deduper.get_files_with_size_filter')
+@patch('duplicatemaster.deduper.hash_files_with_size_info')
 def test_find_duplicates_empty_directory(mock_hash_files, mock_get_files):
     """Test with empty directory."""
     # Mock empty file discovery
@@ -265,8 +265,8 @@ def test_find_duplicates_empty_directory(mock_hash_files, mock_get_files):
     mock_hash_files.assert_not_called()
 
 
-@patch('filedupfinder.deduper.get_files_recursively')
-@patch('filedupfinder.deduper.batch_hash_files')
+@patch('duplicatemaster.deduper.get_files_recursively')
+@patch('duplicatemaster.deduper.batch_hash_files')
 def test_find_duplicates_legacy_mode(mock_batch_hash, mock_get_files):
     """Test duplicate detection in legacy mode (non-optimized)."""
     # Mock file discovery
@@ -307,8 +307,8 @@ def test_find_duplicates_legacy_mode(mock_batch_hash, mock_get_files):
     assert result == expected
 
 
-@patch('filedupfinder.deduper.get_files_with_size_filter')
-@patch('filedupfinder.deduper.hash_files_with_size_info')
+@patch('duplicatemaster.deduper.get_files_with_size_filter')
+@patch('duplicatemaster.deduper.hash_files_with_size_info')
 def test_find_duplicates_no_duplicates_found(mock_hash_files, mock_get_files):
     """Test when no duplicates are found."""
     # Mock file discovery with size information
