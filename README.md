@@ -13,15 +13,65 @@ A high-performance, parallel Python tool to detect and manage duplicate files �
 - 🧼 **Safe deletion** with dry-run, force, and **interactive file-level selection**
 - 📦 **Saving space analysis** included in report
 - 📜 **Verbose logging** with optional file log
+- 🖥️ **Graphical User Interface** with real-time progress
+- 🐳 **Docker support** for containerized deployment
 
 ---
 
 ## 📦 Installation
 
+### Option 1: PyPI Package (Recommended)
+
 ```bash
-git clone https://github.com/ahmadqmalzoubi/file-duplicate-finder.git
+# Install CLI only
+pip install filedupfinder
+
+# Install with GUI support
+pip install filedupfinder[gui]
+
+# Install development dependencies
+pip install filedupfinder[dev]
+```
+
+### Option 2: Standalone Executables
+
+Download pre-built executables from the [Releases page](https://github.com/yourusername/file-duplicate-finder/releases):
+
+- **Windows**: `filedupfinder.exe` and `filedupfinder-gui.exe`
+- **Linux**: `filedupfinder` and `filedupfinder-gui`
+- **macOS**: `filedupfinder` and `filedupfinder-gui`
+
+### Option 3: Docker
+
+```bash
+# Pull the image
+docker pull yourusername/filedupfinder:latest
+
+# Run with volume mounting
+docker run -v $(pwd):/app/data yourusername/filedupfinder:latest /app/data
+```
+
+### Option 4: From Source
+
+```bash
+git clone https://github.com/yourusername/file-duplicate-finder.git
 cd file-duplicate-finder
-pip install -r requirements.txt
+pip install -e .
+```
+
+### Option 5: Platform-Specific Install Scripts
+
+```bash
+# Linux
+chmod +x scripts/install-linux.sh
+./scripts/install-linux.sh
+
+# macOS
+chmod +x scripts/install-macos.sh
+./scripts/install-macos.sh
+
+# Windows
+scripts\install-windows.bat
 ```
 
 ---
@@ -30,52 +80,52 @@ pip install -r requirements.txt
 
 ### **Basic Usage**
 ```bash
-python -m filedupfinder ~/data
+filedupfinder ~/data
 ```
 
 ### **Quick Scan (Fast but less accurate)**
 ```bash
-python -m filedupfinder ~/data --quick
+filedupfinder ~/data --quick
 ```
 
 ### **Multi-Region Scan (More accurate)**
 ```bash
-python -m filedupfinder ~/data --multi-region
+filedupfinder ~/data --multi-region
 ```
 
 ### **Size Filtering**
 ```bash
-python -m filedupfinder ~/data --minsize 5 --maxsize 500
+filedupfinder ~/data --minsize 5 --maxsize 500
 ```
 
 ### **Export Results**
 ```bash
-python -m filedupfinder ~/data --json-out duplicates.json --csv-out duplicates.csv
+filedupfinder ~/data --json-out duplicates.json --csv-out duplicates.csv
 ```
 
 ### **Safe Deletion (Dry Run)**
 ```bash
-python -m filedupfinder ~/data --delete --dry-run
+filedupfinder ~/data --delete --dry-run
 ```
 
 ### **Interactive Deletion**
 ```bash
-python -m filedupfinder ~/data --delete --interactive
+filedupfinder ~/data --delete --interactive
 ```
 
 ### **Performance Benchmark**
 ```bash
-python -m filedupfinder --benchmark
+filedupfinder --benchmark
 ```
 
 ### **Legacy Scanning Mode**
 ```bash
-python -m filedupfinder ~/data --legacy-scan
+filedupfinder ~/data --legacy-scan
 ```
 
 ### **Demo Mode**
 ```bash
-python -m filedupfinder --demo
+filedupfinder --demo
 ```
 
 ### **Graphical User Interface (GUI)**
@@ -83,7 +133,20 @@ python -m filedupfinder --demo
 For a user-friendly graphical interface:
 
 ```bash
-python -m gui.gui_app
+filedupfinder-gui
+```
+
+### **Docker Usage**
+
+```bash
+# Basic scan
+docker run -v $(pwd):/app/data yourusername/filedupfinder:latest /app/data
+
+# With custom arguments
+docker run -v $(pwd):/app/data yourusername/filedupfinder:latest /app/data --threads 4 --quick
+
+# Interactive mode
+docker run -it -v $(pwd):/app/data yourusername/filedupfinder:latest /app/data --interactive
 ```
 
 ### Command Line Interface
@@ -121,7 +184,7 @@ filedupfinder --demo
 
 1. **Launch the GUI:**
    ```bash
-   python -m gui.gui_app
+   filedupfinder-gui
    ```
 
 2. **Using the GUI:**
