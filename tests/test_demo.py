@@ -1,8 +1,10 @@
 import pytest
+import sys
+import subprocess
 import tempfile
 from pathlib import Path
-from filedupfinder.demo import create_demo_files, run_demo_scan, print_demo_results, MockArgs
-from filedupfinder.logger import setup_logger
+from duplicatemaster.demo import create_demo_files, run_demo_scan, print_demo_results, MockArgs
+from duplicatemaster.logger import setup_logger
 
 
 class TestDemo:
@@ -115,12 +117,9 @@ class TestDemo:
 
     def test_demo_cli_integration(self):
         """Test that demo works correctly from CLI."""
-        import subprocess
-        import sys
-        
         # Test that demo runs without errors
         result = subprocess.run([
-            sys.executable, "-m", "filedupfinder", "--demo"
+            sys.executable, "-m", "duplicatemaster", "--demo"
         ], capture_output=True, text=True)
         
         # Should exit successfully

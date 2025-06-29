@@ -1,6 +1,6 @@
-import os
 import pytest
-from filedupfinder.scanner import get_files_recursively
+import os
+from duplicatemaster.scanner import get_files_recursively
 
 class DummyLogger:
     def debug(self, msg): pass

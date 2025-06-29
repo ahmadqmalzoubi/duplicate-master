@@ -5,7 +5,7 @@ from .hasher import DEFAULT_THREADS
 
 def parse_args() -> Any:
     """
-    Parse command-line arguments for the duplicate file finder application.
+    Parse command-line arguments for the DuplicateMaster application.
 
     This function sets up the argument parser with all available options for the CLI,
     including scan parameters, output formats, deletion options, and logging settings.
@@ -47,7 +47,7 @@ def parse_args() -> Any:
         - Default values are optimized for typical usage scenarios
     """
     parser = argparse.ArgumentParser(
-        description="Parallel duplicate file finder")
+        description="DuplicateMaster - High-performance parallel duplicate file finder")
     parser.add_argument('basedir', nargs='?', default=".",
                         help='Directory to scan')
     parser.add_argument('--minsize', type=int, default=4,

@@ -1,8 +1,8 @@
-import os
 import pytest
+import os
 from typing import Any
 from unittest.mock import patch, MagicMock, mock_open
-from filedupfinder.deletion import delete_files, handle_deletion
+from duplicatemaster.deletion import delete_files, handle_deletion
 
 
 class MockLogger:

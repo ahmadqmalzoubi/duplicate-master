@@ -1,25 +1,95 @@
 [project]
-name = "filedupfinder"
+name = "duplicatemaster"
 version = "0.7.0"
 description = "A high-performance, parallel Python tool to detect and manage duplicate files."
 readme = "README.md"
 authors = [
-    { name = "Ahmad QM Alzoubi" }
+    { name = "Ahmad QM Alzoubi", email = "ahmad@example.com" }
 ]
-license = { file = "LICENSE" }
+license = "GPL-3.0-or-later"
+keywords = ["duplicate", "files", "finder", "hash", "performance", "parallel"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Filesystems",
+    "Topic :: Utilities",
+]
 dependencies = [
     "tqdm>=4.66.0,<5.0.0"
 ]
 requires-python = ">=3.8"
 
+[project.optional-dependencies]
+gui = [
+    "PySide6>=6.7.0,<7.0.0"
+]
+dev = [
+    "pytest>=7.4.0,<8.0.0",
+    "mypy>=1.5.0,<2.0.0",
+    "black>=23.9.0,<24.0.0",
+    "build>=1.0.0",
+    "twine>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/duplicate-master"
+Documentation = "https://github.com/yourusername/duplicate-master#readme"
+Repository = "https://github.com/yourusername/duplicate-master.git"
+"Bug Tracker" = "https://github.com/yourusername/duplicate-master/issues"
+
 [project.scripts]
-filedupfinder = "filedupfinder.__main__:main"
-filedupfinder-gui = "gui.gui_app:main"
+duplicatemaster = "duplicatemaster.__main__:main"
+duplicatemaster-gui = "gui.gui_app:main"
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-packages = ["filedupfinder", "gui"]
+packages = ["duplicatemaster", "gui"]
+
+[tool.setuptools.package-data]
+duplicatemaster = ["*.txt", "*.md"]
+gui = ["*.txt", "*.md"]
+
+# PyInstaller configuration
+[tool.pyinstaller]
+name = "DuplicateMaster"
+onefile = true
+windowed = true
+icon = "assets/fdf-icon.ico"
+add-data = ["assets/fdf-icon.ico;assets/"]
+hidden-import = ["PySide6.QtCore", "PySide6.QtWidgets", "PySide6.QtGui"]
+
+# For Linux
+[tool.pyinstaller.linux]
+name = "duplicatemaster"
+onefile = true
+console = true
+icon = "assets/fdf-icon.ico"
+
+# For macOS
+[tool.pyinstaller.macos]
+name = "DuplicateMaster"
+onefile = true
+console = true
+icon = "assets/fdf-icon.ico"
+
+# cx_Freeze configuration
+[tool.cx_freeze]
+name = "DuplicateMaster"
+version = "0.7.0"
+description = "A high-performance, parallel Python tool to detect and manage duplicate files."
+author = "Ahmad QM Alzoubi"
+executables = [
+    { script = "src/duplicatemaster/__main__.py", base = "Console", target_name = "duplicatemaster" },
+    { script = "src/gui/gui_app.py", base = "Win32GUI", target_name = "duplicatemaster-gui" }
+]

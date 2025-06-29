@@ -1,9 +1,9 @@
+import pytest
 import json
 import csv
 import os
-import pytest
 from unittest.mock import MagicMock
-from filedupfinder.exporter import export_results
+from duplicatemaster.exporter import export_results
 
 
 class MockArgs:

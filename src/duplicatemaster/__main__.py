@@ -7,11 +7,35 @@ from .exporter import export_results
 from .demo import run_demo
 from .benchmark import run_benchmark
 import os
+from typing import Dict, List, Tuple, Any
+
+
+def display_detailed_results(duplicates: Dict[Tuple[int, str], List[str]], logger: Any) -> None:
+    """
+    Display detailed duplicate results in a user-friendly format.
+    
+    Args:
+        duplicates: Dictionary of duplicate files found
+        logger: Logger instance for output
+    """
+    if not duplicates:
+        logger.info("   • No duplicate files found in the scanned directory.")
+        return
+    
+    logger.info("\n📋 Duplicate Groups Found:")
+    logger.info("-" * 50)
+    
+    for i, ((size, hash_val), paths) in enumerate(duplicates.items(), 1):
+        logger.info(f"\n🔍 Group {i} (Size: {format_bytes(size)}, Hash: {hash_val[:8]}...)")
+        for j, path in enumerate(paths):
+            # Show relative path for cleaner output
+            rel_path = os.path.relpath(path)
+            logger.info(f"  [{j}] {rel_path}")
 
 
 def main() -> None:
     """
-    Main entry point for the duplicate file finder application.
+    Main entry point for the DuplicateMaster application.
 
     This function orchestrates the entire duplicate file finding process:
     1. Parses command-line arguments
@@ -25,6 +49,7 @@ def main() -> None:
     The function provides comprehensive feedback to the user including:
     - Scan progress and status
     - Summary statistics (groups, files, space usage)
+    - Detailed duplicate group information
     - Error handling and logging
     - Export functionality
 
@@ -33,11 +58,11 @@ def main() -> None:
         # Scans current directory and reports results
 
     Command-line usage:
-        $ filedupfinder /path/to/scan
-        $ filedupfinder --delete --dry-run /path/to/scan
-        $ filedupfinder --minsize 5 --maxsize 500 /path/to/scan
-        $ filedupfinder --demo
-        $ filedupfinder --benchmark
+        $ duplicatemaster /path/to/scan
+        $ duplicatemaster --delete --dry-run /path/to/scan
+        $ duplicatemaster --minsize 5 --maxsize 500 /path/to/scan
+        $ duplicatemaster --demo
+        $ duplicatemaster --benchmark
 
     Note:
         - Exits with error code 1 if the target directory is invalid
@@ -90,8 +115,9 @@ def main() -> None:
         f"   • {format_bytes(total_space)} of space used by duplicates")
     logger.info(f"   • {format_bytes(savings)} can be reclaimed")
 
-    if num_groups == 0:
-        logger.info("   • No duplicate files found in the scanned directory.")
+    # Display detailed results if duplicates found
+    if num_groups > 0:
+        display_detailed_results(duplicates, logger)
 
     if args.delete:
         handle_deletion(duplicates, args, logger)

@@ -1,11 +1,12 @@
 import pytest
+import time
 import tempfile
 import os
 from pathlib import Path
-from filedupfinder.scanner import get_files_recursively, get_files_with_size_filter, _get_files_parallel, _get_files_sequential
-from filedupfinder.hasher import blake2bsum, batch_hash_files, hash_files_with_size_info, _hash_with_memory_map, _hash_with_file_reading
-from filedupfinder.benchmark import PerformanceBenchmark
-from filedupfinder.logger import setup_logger
+from duplicatemaster.scanner import get_files_recursively, get_files_with_size_filter, _get_files_parallel, _get_files_sequential
+from duplicatemaster.hasher import blake2bsum, batch_hash_files, hash_files_with_size_info, _hash_with_memory_map, _hash_with_file_reading
+from duplicatemaster.benchmark import PerformanceBenchmark
+from duplicatemaster.logger import setup_logger
 
 
 class TestOptimizedScanner:

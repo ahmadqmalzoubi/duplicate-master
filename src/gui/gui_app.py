@@ -1,8 +1,8 @@
-from filedupfinder.exporter import export_results
-from filedupfinder.logger import setup_logger
-from filedupfinder.analyzer import analyze_space_savings, format_bytes
-from filedupfinder.deduper import find_duplicates
-from filedupfinder.deletion import delete_files
+from duplicatemaster.exporter import export_results
+from duplicatemaster.logger import setup_logger
+from duplicatemaster.analyzer import analyze_space_savings, format_bytes
+from duplicatemaster.deduper import find_duplicates
+from duplicatemaster.deletion import delete_files
 from PySide6.QtGui import QIcon, QFont, QColor, QBrush
 from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer
 from PySide6.QtWidgets import (
@@ -91,9 +91,9 @@ class DemoWorker(QObject):
         super().__init__()
 
     def run(self):
-        from filedupfinder.demo import run_demo
-        from filedupfinder.deduper import find_duplicates
-        from filedupfinder.analyzer import analyze_space_savings, format_bytes
+        from duplicatemaster.demo import run_demo
+        from duplicatemaster.deduper import find_duplicates
+        from duplicatemaster.analyzer import analyze_space_savings, format_bytes
         import tempfile
         from pathlib import Path
 
@@ -126,7 +126,7 @@ class DemoWorker(QObject):
 
                 # Create demo files
                 logger_proxy.info("📁 Creating demo files with duplicates...")
-                from filedupfinder.demo import create_demo_files
+                from duplicatemaster.demo import create_demo_files
                 file_mapping = create_demo_files(base_dir)
 
                 # Run scan

@@ -1,5 +1,5 @@
 import pytest
-from filedupfinder.analyzer import analyze_space_savings, format_bytes
+from duplicatemaster.analyzer import analyze_space_savings, format_bytes
 
 
 class TestAnalyzer:
