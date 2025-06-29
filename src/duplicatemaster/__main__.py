@@ -28,9 +28,9 @@ def display_detailed_results(duplicates: Dict[Tuple[int, str], List[str]], logge
     for i, ((size, hash_val), paths) in enumerate(duplicates.items(), 1):
         logger.info(f"\n🔍 Group {i} (Size: {format_bytes(size)}, Hash: {hash_val[:8]}...)")
         for j, path in enumerate(paths):
-            # Show relative path for cleaner output
-            rel_path = os.path.relpath(path)
-            logger.info(f"  [{j}] {rel_path}")
+            # Show absolute path for complete file location
+            abs_path = os.path.abspath(path)
+            logger.info(f"  [{j}] {abs_path}")
 
 
 def main() -> None:
