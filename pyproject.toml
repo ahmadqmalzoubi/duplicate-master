@@ -32,6 +32,7 @@ gui = [
 ]
 dev = [
     "pytest>=7.4.0,<8.0.0",
+    "pytest-cov>=4.1.0,<5.0.0",
     "mypy>=1.5.0,<2.0.0",
     "black>=23.9.0,<24.0.0",
     "build>=1.0.0",
@@ -55,35 +56,13 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 package-dir = {"" = "src"}
 packages = ["duplicatemaster", "gui"]
+include-package-data = true
 
 [tool.setuptools.package-data]
 duplicatemaster = ["*.txt", "*.md"]
 gui = ["*.txt", "*.md"]
 
-# PyInstaller configuration
-[tool.pyinstaller]
-name = "DuplicateMaster"
-onefile = true
-windowed = true
-icon = "assets/fdf-icon.ico"
-add-data = ["assets/fdf-icon.ico;assets/"]
-hidden-import = ["PySide6.QtCore", "PySide6.QtWidgets", "PySide6.QtGui"]
-
-# For Linux
-[tool.pyinstaller.linux]
-name = "duplicatemaster"
-onefile = true
-console = true
-icon = "assets/fdf-icon.ico"
-
-# For macOS
-[tool.pyinstaller.macos]
-name = "DuplicateMaster"
-onefile = true
-console = true
-icon = "assets/fdf-icon.ico"
-
-# cx_Freeze configuration
+# cx_Freeze configuration (optional, for advanced users)
 [tool.cx_freeze]
 name = "DuplicateMaster"
 version = "0.7.0"

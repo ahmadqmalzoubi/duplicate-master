@@ -1,20 +1,20 @@
-# filedupfinder.spec
+# duplicatemaster.spec
 
 block_cipher = None
 
 a = Analysis(
     ['src/gui/gui_app.py'],
-    pathex=['.', 'src', 'src/filedupfinder'],
+    pathex=['.', 'src', 'src/duplicatemaster', 'src/gui'],
     binaries=[],
-    datas=[],
+    datas=[('assets/fdf-icon.ico', 'assets')],
     hiddenimports=[
-        'filedupfinder.hasher',
-        'filedupfinder.deduper', 
-        'filedupfinder.analyzer',
-        'filedupfinder.deletion',
-        'filedupfinder.exporter',
-        'filedupfinder.logger',
-        'filedupfinder.scanner',
+        'duplicatemaster.hasher',
+        'duplicatemaster.deduper',
+        'duplicatemaster.analyzer',
+        'duplicatemaster.deletion',
+        'duplicatemaster.exporter',
+        'duplicatemaster.logger',
+        'duplicatemaster.scanner',
         'gui.gui_app',
     ],
     hookspath=[],
@@ -34,7 +34,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='FileDuplicateFinder',
+    name='DuplicateMaster',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
